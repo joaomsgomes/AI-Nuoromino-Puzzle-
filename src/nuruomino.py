@@ -14,8 +14,8 @@ class NuruominoState:
 
     def __init__(self, board):
         self.board = board
-        self.id = Nuroumino.state_id
-        Nuroumino.state_id += 1
+        self.id = Nuruomino.state_id
+        Nuruomino.state_id += 1
 
     def __lt__(self, other):
         """ Este método é utilizado em caso de empate na gestão da lista
@@ -25,6 +25,7 @@ class NuruominoState:
 class Board:
     """Representação interna de um tabuleiro do Puzzle Nuruomino."""
 
+    
     def adjacent_regions(self, region:int) -> list:
         """Devolve uma lista das regiões que fazem fronteira com a região enviada no argumento."""
         #TODO
@@ -52,24 +53,36 @@ class Board:
             > from sys import stdin
             > line = stdin.readline().split()
         """
-        #board_matrix = 
+        board = []
+        regions = []
+        for line in stdin:
+            if not line.strip():
+                continue
+            board.append([int(x) for x in line.strip().split()])
+            regions.append([(line,) for x in line.strip().split()])
+        return board
+    
         #TODO
         pass
 
-    def parse_instance2():
-        """Lê a matriz de regiões do stdin e cria uma instância de Board."""
+    """def parse_instance2():
+
         region_matrix = []
         for line in stdin:
             if not line.strip():
                 continue
             region_matrix.append([int(x) for x in line.strip().split()])
         return Board(region_matrix)    
-
+    """
     # TODO: outros metodos da classe Board
 
 class Nuruomino(Problem):
     def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
+        self.board = board
+        self.initial = NuruominoState(board)
+        self.initial.state_id = 0 # ID do estado inicial
+
         #TODO
         pass 
 
@@ -101,5 +114,8 @@ class Nuruomino(Problem):
         # TODO
         pass
 
-state = NuruominoState.__init__()
-print(board.region_matrix)
+if __name__ == "__main__":
+    board = Board.parse_instance()
+    print(board)    
+    #for row in board.region_matrix:
+    #    print(row)
