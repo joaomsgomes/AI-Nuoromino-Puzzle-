@@ -2,9 +2,11 @@
 # Devem alterar as classes e funções neste ficheiro de acordo com as instruções do enunciado.
 # Além das funções e classes sugeridas, podem acrescentar outras que considerem pertinentes.
 
-# Grupo 00:
-# 00000 Nome1
-# 00000 Nome2
+# Grupo 23:
+# 109512 João Gomes
+# 110135 Manuel Semedo
+
+from search import *
 
 class NuruominoState:
     state_id = 0
