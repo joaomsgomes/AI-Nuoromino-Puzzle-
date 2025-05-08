@@ -7,6 +7,7 @@
 # 110135 Manuel Semedo
 
 from search import *
+from sys import stdin
 
 class NuruominoState:
     state_id = 0
@@ -51,8 +52,18 @@ class Board:
             > from sys import stdin
             > line = stdin.readline().split()
         """
+        #board_matrix = 
         #TODO
-        pass    
+        pass
+
+    def parse_instance2():
+        """Lê a matriz de regiões do stdin e cria uma instância de Board."""
+        region_matrix = []
+        for line in stdin:
+            if not line.strip():
+                continue
+            region_matrix.append([int(x) for x in line.strip().split()])
+        return Board(region_matrix)    
 
     # TODO: outros metodos da classe Board
 
@@ -89,3 +100,6 @@ class Nuruomino(Problem):
         """Função heuristica utilizada para a procura A*."""
         # TODO
         pass
+
+state = NuruominoState.__init__()
+print(board.region_matrix)
