@@ -56,9 +56,14 @@ class NuruominoState:
 class Board:
     """Representação interna de um tabuleiro do Puzzle Nuruomino."""
 
+    def __init__(self, grid, regions, positions):
+        self.grid = grid  # Representa o tabuleiro como uma lista de listas
+        self.size = len(grid)
+        self.regions = regions  # Guarda as regiões
+        self.possible_positions = positions
 
     def get_value(self, row:int, col:int):
-        return self[row][col]
+        return self.grid[row][col]
     
     def adjacent_regions(self, regions, region:int) -> list:
         """Devolve uma lista das regiões que fazem fronteira com a região enviada no argumento."""
@@ -117,6 +122,7 @@ class Board:
         e retorna uma instância da classe Board.
         """
         board = []
+        positions = []
 
         for line in stdin:
             if not line.strip():
@@ -127,18 +133,19 @@ class Board:
         region_dict = defaultdict(list)
         for i, row in enumerate(board):
             for j, val in enumerate(row):
+                positions.append((i,j))
                 region_dict[val].append((i, j))
         
         # Lista de regiões (cada uma é uma lista de coordenadas)
         #regions = list(region_dict.values())
 
-        return board, region_dict
+        return Board(board, region_dict, positions)
     
         #TODO
         pass
 
     def print_instance(self):
-        for row in self:
+        for row in self.grid:
             print(" ".join(str(x) for x in row))
 
     def print_regions(region_dict):
@@ -190,25 +197,42 @@ class Board:
         return False
     
         
-    def fill_tetromino_regions(self, regions):
+    def fill_tetromino_regions(self):
         
-        for r in range(1, len(regions)+1):
-            if len(regions[r]) == 4:
-                piece_letter = Board.get_tetromino(regions[r])
-                for i,j in regions[r]:
-                    self[i][j] = piece_letter
-        
+        for r in range(1, len(self.regions)+1):
+            if len(self.regions[r]) == 4:
+                piece_letter = Board.get_tetromino(self.regions[r])
+                for i,j in self.regions[r]:
+                    self.possible_positions.remove((i,j))
+                    self.grid[i][j] = piece_letter
+
+        self.filter_possible_positions()
         Board.print_instance(self)
     
+    def filter_possible_positions(self):
+        
+        for row in range(0, self.size-1):
+            for col in range(0, self.size-1):
+                square = [(row, col), (row, col+1),
+                           (row+1, col), (row+1, col+1)]
+                free_pos = []
+                for (i, j) in square:
+                    if self.get_value(i, j) not in ['L','I','T','S']:
+                        free_pos.append((i,j))
+
+                if len(free_pos) == 1:
+                    print(free_pos)
+                    self.possible_positions.remove(free_pos[0])
+
 
 
     # TODO: outros metodos da classe Board
 
 class Nuruomino(Problem):
-    def __init__(self, board: Board, regions):
+    def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
         self.board = board
-        Board.fill_tetromino_regions(board, regions)
+        Board.fill_tetromino_regions(board)
         self.initial = NuruominoState(board)
         self.initial.state_id = 0 # ID do estado inicial
 
@@ -245,11 +269,11 @@ class Nuruomino(Problem):
         pass
 
 if __name__ == "__main__":
-    board, regions = Board.parse_instance()
+    board = Board.parse_instance()
     Board.print_instance(board)
     # Exemplo de impressão das regiões
-    Board.print_regions(regions)
-    Board.fill_tetromino_regions(board, regions)
+    # Board.print_regions(board.regions)
+    print(f"Possible_pos: {board.possible_positions}")
+    Board.fill_tetromino_regions(board)
+    print(f"Possible_pos: {board.possible_positions}")
     #problem = Nuruomino(board, regions)
-
-    #Board.fill_tetromino_regions(board, regions)
