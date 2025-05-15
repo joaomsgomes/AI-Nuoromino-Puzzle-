@@ -10,6 +10,35 @@ from search import *
 from sys import stdin
 from collections import defaultdict
 
+TETROMINO_SHAPES = {
+    'I': [
+        [(0,0), (0,1), (0,2), (0,3)],
+        [(0,0), (1,0), (2,0), (3,0)]
+    ],
+    'L': [
+        [(0,0), (1,0), (2,0), (2,1)],
+        [(0,1), (1,1), (2,1), (2,0)],
+        [(0,0), (0,1), (1,1), (2,1)],
+        [(0,0), (0,1), (1,0), (2,0)],
+        [(0,2), (1,0), (1,1), (1,2)],
+        [(0,0), (1,0), (1,1), (1,2)],
+        [(0,0), (0,1), (0,2), (1,0)],
+        [(0,0), (0,1), (0,2), (1,2)]
+    ],
+    'T': [
+        [(0,0), (0,1), (0,2), (1,1)],
+        [(0,1), (1,0), (1,1), (2,1)],
+        [(1,0), (1,1), (1,2), (0,1)],
+        [(0,0), (1,0), (1,1), (2,0)]
+    ],
+    'S': [
+        [(0,1), (0,2), (1,0), (1,1)],
+        [(0,0), (1,0), (1,1), (2,1)],
+        [(0,0), (0,1), (1,1), (1,2)],
+        [(0,1), (1,0), (1,1), (2,0)]
+    ]
+}
+
 class NuruominoState:
     state_id = 0
 
@@ -26,6 +55,7 @@ class NuruominoState:
 
 class Board:
     """Representação interna de um tabuleiro do Puzzle Nuruomino."""
+
 
     def get_value(self, row:int, col:int):
         return self[row][col]
@@ -85,15 +115,9 @@ class Board:
     def parse_instance():
         """Lê o test do standard input (stdin) que é passado como argumento
         e retorna uma instância da classe Board.
-
-        Por exemplo:
-            $ python3 pipe.py < test-01.txt
-
-            > from sys import stdin
-            > line = stdin.readline().split()
         """
         board = []
-    
+
         for line in stdin:
             if not line.strip():
                 continue
@@ -117,12 +141,74 @@ class Board:
         for row in self:
             print(" ".join(str(x) for x in row))
 
+    def print_regions(region_dict):
+        for region_id, positions in region_dict.items():
+            print(f"Região {region_id}:")
+            for pos in positions:
+                print(pos)
+            print()  # Linha em branco entre regiões
+
+    def get_vector_region(region):
+        piece = []
+        first_pos = region[0]
+        for pos in region:
+            delta_row = pos[0] - first_pos[0]
+            delta_col = pos[1] - first_pos[1]
+            piece.append((delta_row, delta_col))
+        print(piece)
+        return piece
+    
+    def get_tetromino(region):
+        piece = Board.get_vector_region(region)
+        if Board.is_L(piece):
+            return "L"
+        if Board.is_I(piece):
+            return "I"
+        if Board.is_T(piece):
+            return "T"
+        if Board.is_S(piece):
+            return "S"
+
+    def is_L(piece):
+        if piece in TETROMINO_SHAPES['L']:
+            return True
+        return False
+    
+    def is_I(piece):
+        if piece in TETROMINO_SHAPES['I']:
+            return True
+        return False
+    
+    def is_T(piece):
+        if piece in TETROMINO_SHAPES['T']:
+            return True
+        return False
+    
+    def is_S(piece):
+        if piece in TETROMINO_SHAPES['S']:
+            return True
+        return False
+    
+        
+    def fill_tetromino_regions(self, regions):
+        
+        for r in range(1, len(regions)+1):
+            if len(regions[r]) == 4:
+                piece_letter = Board.get_tetromino(regions[r])
+                for i,j in regions[r]:
+                    self[i][j] = piece_letter
+        
+        Board.print_instance(self)
+    
+
+
     # TODO: outros metodos da classe Board
 
 class Nuruomino(Problem):
-    def __init__(self, board: Board):
+    def __init__(self, board: Board, regions):
         """O construtor especifica o estado inicial."""
         self.board = board
+        Board.fill_tetromino_regions(board, regions)
         self.initial = NuruominoState(board)
         self.initial.state_id = 0 # ID do estado inicial
 
@@ -132,6 +218,7 @@ class Nuruomino(Problem):
     def actions(self, state: NuruominoState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
+        
         #TODO
         pass 
 
@@ -161,14 +248,8 @@ if __name__ == "__main__":
     board, regions = Board.parse_instance()
     Board.print_instance(board)
     # Exemplo de impressão das regiões
-    for i, region in enumerate(regions):
-        print(f"Região {i+1}: {region}")
+    Board.print_regions(regions)
+    Board.fill_tetromino_regions(board, regions)
+    #problem = Nuruomino(board, regions)
 
-    a = 1
-    b = 2
-    print("\nAdj_pos:")
-    print(Board.adjacent_positions(board, a, b))
-    print("\nAdj_values:")
-    print(Board.adjacent_values(board, a, b))
-    print("\nAdj_regions:")
-    print(Board.adjacent_regions(board, regions, 5))
+    #Board.fill_tetromino_regions(board, regions)
