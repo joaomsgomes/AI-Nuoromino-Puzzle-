@@ -9,6 +9,7 @@
 from search import *
 from sys import stdin
 from collections import defaultdict
+import copy
 
 TETROMINO_SHAPES = {
     'I': [
@@ -68,9 +69,9 @@ class Board:
         self.regions = regions  # Guarda as regiões
         self.possible_positions = positions
 
-    def get_value(self, row:int, col:int):
-        if 0 <= row < self.size and 0 <= col < self.size:
-            return self.grid[row][col]
+    def get_value(grid, row:int, col:int):
+        if 0 <= row < len(grid) and 0 <= col < len(grid):
+            return grid[row][col]
         else:
             return 0
     
@@ -117,12 +118,9 @@ class Board:
         adj_val = []
         adj_pos = Board.adjacent_positions(self, row, col)
         for i,j in adj_pos:
-            adj_val.append(Board.get_value(self, i, j))
+            adj_val.append(Board.get_value(self.grid, i, j))
         
         return adj_val
-    
-        #TODO
-        pass
     
     
     @staticmethod
@@ -153,8 +151,8 @@ class Board:
         #TODO
         pass
 
-    def print_instance(self):
-        for row in self.grid:
+    def print_instance(grid):
+        for row in grid:
             print(" ".join(str(x) for x in row))
 
     def print_regions(self):
@@ -216,10 +214,42 @@ class Board:
                     self.possible_positions.remove((i,j))
                     self.regions[r].remove((i,j))
                     self.grid[i][j] = piece_letter
-
+        
+        print("Possible positions: ", self.possible_positions)
         self.filter_square_positions()
         self.print_regions()
+
+    def filter_square_positions(self):
+
+        filtered_positions = []
+
+        for i, j in self.possible_positions:
+            if not Board.is_square(self.grid, i, j):
+                filtered_positions.append((i, j))
+            else:
+                region = Board.get_value(self.grid, i, j)
+            
+                self.regions[region].remove((i, j))
+
+        #print(f"Possible positions after filtering: {filtered_positions}")
+        self.possible_positions = filtered_positions
+        print(f"Possible positions after filtering: {self.possible_positions}")
     
+    def place_piece(grid, piece, positions):
+        
+        for i, j in positions:
+            grid[i][j] = piece
+
+
+    def get_all_actions(self):
+        all_pieces = []
+        for region in self.regions.values():
+            pieces = Board.get_possible_pieces(region)
+            filtered_pieces = Board.filter_adjacent_pieces(self, pieces)
+
+            all_pieces.append(filtered_pieces)
+        
+        return all_pieces
 
     def get_possible_pieces(region):
                
@@ -256,59 +286,69 @@ class Board:
         
         print(f"Possible pieces for region: {possible_pieces}")
         return possible_pieces
-    
+
+
     def filter_adjacent_pieces(self, possible_pieces):
         """Remove as peças que não podem ser colocadas na região."""
         filtered_pieces = []
 
-        for piece in possible_pieces:
+        original_grid = self.grid  # Guarda o grid original
 
+        for piece in possible_pieces:
             piece_type, positions = piece
-                
-            # Verifica se há adjacência inválida
+
+            aux_grid = copy.deepcopy(original_grid)
+
+            # Substitui temporariamente o self.grid
+            self.grid = aux_grid
+
+            print("/////////////////////")
+
+            # Checa adjacências com o self.grid temporário
             has_invalid_adj = any(
                 piece_type in self.adjacent_values(row, col) for row, col in positions
             )
+            
+            
             if has_invalid_adj:
+                print(f"Invalid piece: {piece}")
                 continue
+            
+            Board.place_piece(aux_grid, piece_type, positions)
+            Board.print_instance(aux_grid)
 
-            # Verifica se formaríamos um quadrado 2x2 ao colocar esta peça
-            forms_square = any(self.is_square(row, col) for row, col in positions)
+
+            # Agora testa se forma quadrado no aux_grid (sem precisar alterar self)
+            forms_square = any(Board.is_square(aux_grid, row, col) for row, col in positions)
             if forms_square:
                 continue
 
-            # Se passou ambos os testes, é uma peça válida
+            # Peça válida
+            print(f"Valid piece: {piece}")
             filtered_pieces.append(piece)
-
+            self.grid = original_grid  # Restaura o grid original
+        # Restaura o grid original
+            
         print(f"Possible pieces after filtering: {filtered_pieces}")
         return filtered_pieces
     
 
-    def is_square(self, row, col):
+    def is_square(grid, row, col):
 
         for deltas in square_deltas:
-            square = [self.get_value(row + dx, col + dy) for dx, dy in deltas]
+            square = [Board.get_value(grid, row + dx, col + dy) for dx, dy in deltas]
             count = 0
             for val in square:
                 if val in TETROMINO_SHAPES:
                     count+=1
-                else:
-                    break
             if count == 3:
+                print(f"Square found at ({row}, {col}) with deltas: {deltas}")
                 return True
         
         return False
 
     
-    def filter_square_positions(self):
 
-        filtered_positions = []
-
-        for i, j in self.possible_positions:
-            if not self.is_square(i, j):
-                filtered_positions.append((i,j))
-        
-        self.possible_positions = filtered_positions
         
 
 
@@ -366,12 +406,15 @@ if __name__ == "__main__":
     # Exemplo de impressão das regiões
     # Board.print_regions(board.regions)
     #print(f"Possible_pos: {board.possible_positions}")
+    
     Board.fill_tetromino_regions(board)
+    
+
     #print(f"Possible_pos: {board.possible_positions}")
     #print(len(board.possible_positions))
-    Board.print_instance(board)
+    Board.print_instance(board.grid)
     #problem = Nuruomino(board, regions)
     
-    possible_pieces = Board.get_possible_pieces(board.regions[1])
+    possible_pieces = Board.get_possible_pieces(board.regions[6])
     print("/////////////////////")
     Board.filter_adjacent_pieces(board, possible_pieces)
