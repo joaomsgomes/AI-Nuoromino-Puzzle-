@@ -39,6 +39,13 @@ TETROMINO_SHAPES = {
     ]
 }
 
+square_deltas = [
+    [(0, 0), (0, 1), (1, 0), (1, 1)],  # canto superior esquerdo
+    [(0, -1), (0, 0), (1, -1), (1, 0)],  # canto superior direito
+    [(-1, 0), (-1, 1), (0, 0), (0, 1)],  # canto inferior esquerdo
+    [(-1, -1), (-1, 0), (0, -1), (0, 0)]  # canto inferior direito
+]
+
 class NuruominoState:
     state_id = 0
 
@@ -62,7 +69,10 @@ class Board:
         self.possible_positions = positions
 
     def get_value(self, row:int, col:int):
-        return self.grid[row][col]
+        if 0 <= row < self.size and 0 <= col < self.size:
+            return self.grid[row][col]
+        else:
+            return 0
     
     def adjacent_regions(self, region:int) -> list:
         """Devolve uma lista das regiões que fazem fronteira com a região enviada no argumento."""
@@ -253,28 +263,53 @@ class Board:
 
         for piece in possible_pieces:
 
-            for pos in piece[1]:
-                if not any(piece[0] in self.adjacent_values(pos[0], pos[1])):
-                    filtered_pieces.append(piece)
+            piece_type, positions = piece
+                
+            # Verifica se há adjacência inválida
+            has_invalid_adj = any(
+                piece_type in self.adjacent_values(row, col) for row, col in positions
+            )
+            if has_invalid_adj:
+                continue
+
+            # Verifica se formaríamos um quadrado 2x2 ao colocar esta peça
+            forms_square = any(self.is_square(row, col) for row, col in positions)
+            if forms_square:
+                continue
+
+            # Se passou ambos os testes, é uma peça válida
+            filtered_pieces.append(piece)
 
         print(f"Possible pieces after filtering: {filtered_pieces}")
         return filtered_pieces
-   
+    
+
+    def is_square(self, row, col):
+
+        for deltas in square_deltas:
+            square = [self.get_value(row + dx, col + dy) for dx, dy in deltas]
+            count = 0
+            for val in square:
+                if val in TETROMINO_SHAPES:
+                    count+=1
+                else:
+                    break
+            if count == 3:
+                return True
+        
+        return False
+
     
     def filter_square_positions(self):
-        
-        for row in range(0, self.size-1):
-            for col in range(0, self.size-1):
-                square = [(row, col), (row, col+1),
-                           (row+1, col), (row+1, col+1)]
-                free_pos = []
-                for (i, j) in square:
-                    if self.get_value(i, j) not in TETROMINO_SHAPES:
-                        free_pos.append((i,j))
 
-                if len(free_pos) == 1:
-                    print(free_pos)
-                    self.possible_positions.remove(free_pos[0])
+        filtered_positions = []
+
+        for i, j in self.possible_positions:
+            if not self.is_square(i, j):
+                filtered_positions.append((i,j))
+        
+        self.possible_positions = filtered_positions
+        
 
 
     # TODO: outros metodos da classe Board
@@ -337,6 +372,6 @@ if __name__ == "__main__":
     Board.print_instance(board)
     #problem = Nuruomino(board, regions)
     
-    possible_pieces = Board.get_possible_pieces(board.regions[2])
+    possible_pieces = Board.get_possible_pieces(board.regions[1])
     print("/////////////////////")
     Board.filter_adjacent_pieces(board, possible_pieces)
