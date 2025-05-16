@@ -68,17 +68,19 @@ class Board:
         """Devolve uma lista das regiões que fazem fronteira com a região enviada no argumento."""
         #TODO
         positions = self.regions[region]
-        print(f"pos: {positions}")
+        
         adj_regions = []
 
         for i, j in positions:
             adj_val = Board.adjacent_values(self, i, j)
-            print(f"adj val on pos {i, j}: {adj_val}")
+            
             
             for r in adj_val:
                 if r not in adj_regions and r != region:
                     adj_regions.append(r)
         
+        
+        print(f"adj regions: {adj_regions}")
         return adj_regions
 
         pass
@@ -90,12 +92,10 @@ class Board:
               ( 0, -1),          ( 0, 1),
               ( 1, -1), ( 1, 0), ( 1, 1)]
 
-        size = len(board)
-
         adj_pos = []
         for dr, dc in deltas:
             r, c = row + dr, col + dc
-            if 0 <= r < size and 0 <= c < size:
+            if 0 <= r < self.size and 0 <= c < self.size:
                 adj_pos.append((r, c))
 
         return adj_pos
@@ -207,11 +207,61 @@ class Board:
                     self.regions[r].remove((i,j))
                     self.grid[i][j] = piece_letter
 
-        self.filter_possible_positions()
+        self.filter_square_positions()
         self.print_regions()
     
 
-    def filter_possible_positions(self):
+    def get_possible_pieces(region):
+               
+        xs, ys = zip(*region)
+        possible_pieces = []
+        
+        min_x = min(xs)
+        max_x = max(xs)
+        min_y = min(ys)
+        max_y = max(ys)
+        
+        # Rever Complexidade Temporal e usar Switches para as peças
+
+        for piece in TETROMINO_SHAPES:
+            
+            for orientation in range(len(TETROMINO_SHAPES[piece])):
+                for x in range(min_x, max_x + 1):
+                    for y in range(min_y, max_y + 1):
+                        
+                        count = 0
+                        aux_list = []
+                        for pos in TETROMINO_SHAPES[piece][orientation]:
+                            
+                            if (x+pos[0], y+pos[1]) in region:
+                                count += 1
+                                aux_list.append((x+pos[0], y+pos[1]))
+
+                            else:
+                                break
+
+                        if count == 4:
+                            possible_pieces.append((piece, aux_list)) 
+        
+        
+        print(f"Possible pieces for region: {possible_pieces}")
+        return possible_pieces
+    
+    def filter_adjacent_pieces(self, possible_pieces):
+        """Remove as peças que não podem ser colocadas na região."""
+        filtered_pieces = []
+
+        for piece in possible_pieces:
+
+            for pos in piece[1]:
+                if not any(piece[0] in self.adjacent_values(pos[0], pos[1])):
+                    filtered_pieces.append(piece)
+
+        print(f"Possible pieces after filtering: {filtered_pieces}")
+        return filtered_pieces
+   
+    
+    def filter_square_positions(self):
         
         for row in range(0, self.size-1):
             for col in range(0, self.size-1):
@@ -240,9 +290,7 @@ class Nuruomino(Problem):
         #TODO
         pass 
     
-    # def playable_piece(state: NuruominoState):
-
-
+    #def playable_piece(state: NuruominoState):
 
     def actions(self, state: NuruominoState):
         """Retorna uma lista de ações que podem ser executadas a
@@ -278,13 +326,17 @@ class Nuruomino(Problem):
 
 if __name__ == "__main__":
     board = Board.parse_instance()
-    Board.print_instance(board)
+    #Board.print_instance(board)
     #Board.print_regions(board)
     # Exemplo de impressão das regiões
     # Board.print_regions(board.regions)
-    print(f"Possible_pos: {board.possible_positions}")
+    #print(f"Possible_pos: {board.possible_positions}")
     Board.fill_tetromino_regions(board)
-    print(f"Possible_pos: {board.possible_positions}")
-    print(len(board.possible_positions))
+    #print(f"Possible_pos: {board.possible_positions}")
+    #print(len(board.possible_positions))
     Board.print_instance(board)
     #problem = Nuruomino(board, regions)
+    
+    possible_pieces = Board.get_possible_pieces(board.regions[2])
+    print("/////////////////////")
+    Board.filter_adjacent_pieces(board, possible_pieces)
