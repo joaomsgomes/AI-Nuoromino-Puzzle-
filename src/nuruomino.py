@@ -224,7 +224,7 @@ class Board:
         filtered_positions = []
 
         for i, j in self.possible_positions:
-            if not Board.is_square(self.grid, i, j):
+            if not Board.is_square(self.grid, i, j, 0):
                 filtered_positions.append((i, j))
             else:
                 region = Board.get_value(self.grid, i, j)
@@ -244,8 +244,10 @@ class Board:
     def get_all_actions(self):
         all_pieces = []
         for region in self.regions.values():
-            pieces = Board.get_possible_pieces(region)
-            filtered_pieces = Board.filter_adjacent_pieces(self, pieces)
+            if len(region) != 0:
+                print(len(region))
+                pieces = Board.get_possible_pieces(region)
+                filtered_pieces = Board.filter_adjacent_pieces(self, pieces)
 
             all_pieces.append(filtered_pieces)
         
@@ -319,7 +321,7 @@ class Board:
 
 
             # Agora testa se forma quadrado no aux_grid (sem precisar alterar self)
-            forms_square = any(Board.is_square(aux_grid, row, col) for row, col in positions)
+            forms_square = any(Board.is_square(aux_grid, row, col, 1) for row, col in positions)
             if forms_square:
                 continue
 
@@ -333,7 +335,9 @@ class Board:
         return filtered_pieces
     
 
-    def is_square(grid, row, col):
+    # n = 0: the position is free
+    # n = 1: the position is filled
+    def is_square(grid, row, col, n):
 
         for deltas in square_deltas:
             square = [Board.get_value(grid, row + dx, col + dy) for dx, dy in deltas]
@@ -341,7 +345,7 @@ class Board:
             for val in square:
                 if val in TETROMINO_SHAPES:
                     count+=1
-            if count == 3:
+            if count == 3 + n:
                 print(f"Square found at ({row}, {col}) with deltas: {deltas}")
                 return True
         
@@ -418,3 +422,4 @@ if __name__ == "__main__":
     possible_pieces = Board.get_possible_pieces(board.regions[6])
     print("/////////////////////")
     Board.filter_adjacent_pieces(board, possible_pieces)
+    Board.print_instance(board.grid)
