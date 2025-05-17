@@ -67,6 +67,7 @@ class Board:
         self.size = len(grid)
         self.regions = regions  # Guarda as regiões
         self.possible_positions = positions
+        self.placed_pieces = []
 
     def get_value(grid, row:int, col:int):
         if 0 <= row < len(grid) and 0 <= col < len(grid):
@@ -212,12 +213,9 @@ class Board:
         for r in range(1, len(self.regions)+1):
             if len(self.regions[r]) == 4:
                 piece_letter = Board.get_tetromino(self.regions[r])
-                while len(self.regions[r]) != 0:
-                    i, j = self.regions[r][0]
-                    self.possible_positions.remove((i,j))
-                    self.regions[r].remove((i,j))
-                    self.grid[i][j] = piece_letter
-        
+                Board.place_piece(self.grid, piece_letter, self.regions[r])
+                self.placed_pieces.append((piece_letter, self.regions[r]))
+                self.remove_region_positions(r)
         
         self.filter_square_positions()
         self.print_regions()
@@ -387,12 +385,15 @@ class Nuruomino(Problem):
         print(f"action: {action}")
         new_state = NuruominoState(self.board)
         Board.place_piece(new_state.board.grid, piece, positions)
+        self.board.placed_pieces.append((piece, positions))
         new_state.board.remove_region_positions(region)
         new_state.board.filter_square_positions()
 
         Board.print_instance(new_state.board.grid)
         Board.print_regions(new_state.board)
         print(new_state.board.possible_positions)
+
+        return new_state
 
         
 
@@ -404,6 +405,11 @@ class Nuruomino(Problem):
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
         
+        if len(state.board.possible_positions) > 0:
+            return False
+
+
+        return True
         #TODO
         pass 
 
@@ -422,12 +428,16 @@ if __name__ == "__main__":
     
     problem = Nuruomino(board)
 
-    goal_node = depth_first_tree_search(problem)
+    #goal_node = depth_first_tree_search(problem)
 
     
     #s0 = NuruominoState(board)
 
     actions = problem.actions(problem.initial)
-    Board.print_instance(problem.initial.board.grid)
+    #Board.print_instance(problem.initial.board.grid)
     print(actions)
+    print(f"placed pieces: {problem.board.placed_pieces}")
+
     res = problem.result(problem.initial, actions[0])
+    Board.print_instance(problem.board.grid)
+    print(f"placed pieces: {problem.board.placed_pieces}")
