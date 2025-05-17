@@ -218,7 +218,7 @@ class Board:
                     self.regions[r].remove((i,j))
                     self.grid[i][j] = piece_letter
         
-        print("Possible positions: ", self.possible_positions)
+        
         self.filter_square_positions()
         self.print_regions()
 
@@ -234,14 +234,22 @@ class Board:
             
                 self.regions[region].remove((i, j))
 
-        #print(f"Possible positions after filtering: {filtered_positions}")
         self.possible_positions = filtered_positions
-        print(f"Possible positions after filtering: {self.possible_positions}")
     
     def place_piece(grid, piece, positions):
-        
         for i, j in positions:
             grid[i][j] = piece
+
+    def remove_region_positions(self, region):
+        new_possible_positions = []
+
+        for pos in self.possible_positions:
+            if pos not in self.regions[region]:
+                new_possible_positions.append(pos)
+
+        self.regions.pop(region)
+
+        self.possible_positions = new_possible_positions
 
 
     def get_possible_pieces(region):
@@ -277,7 +285,6 @@ class Board:
                             possible_pieces.append((piece, aux_list)) 
         
         
-        print(f"Possible pieces for region: {possible_pieces}")
         return possible_pieces
 
 
@@ -285,44 +292,32 @@ class Board:
         """Remove as peças que não podem ser colocadas na região."""
         filtered_pieces = []
 
-        original_grid = self.grid  # Guarda o grid original
-
         for piece in possible_pieces:
+
             piece_type, positions = piece
 
-            aux_grid = copy.deepcopy(original_grid)
+            aux_grid = copy.deepcopy(self.grid)
 
-            # Substitui temporariamente o self.grid
-            self.grid = aux_grid
-
-            print("/////////////////////")
-
-            # Checa adjacências com o self.grid temporário
+            # Checa adjacências com o aux_grid diretamente
             has_invalid_adj = any(
-                piece_type in self.adjacent_values(row, col) for row, col in positions
+                piece_type in self.adjacent_values(row, col)
+                for row, col in positions
             )
-            
-            
+
             if has_invalid_adj:
-                print(f"Invalid piece: {piece}")
                 continue
-            
+
             Board.place_piece(aux_grid, piece_type, positions)
-            Board.print_instance(aux_grid)
 
-
-            # Agora testa se forma quadrado no aux_grid (sem precisar alterar self)
             forms_square = any(Board.is_square(aux_grid, row, col, 1) for row, col in positions)
             if forms_square:
                 continue
 
-            # Peça válida
-            print(f"Valid piece: {piece}")
             filtered_pieces.append(piece)
-            self.grid = original_grid  # Restaura o grid original
-        # Restaura o grid original
+
             
         print(f"Possible pieces after filtering: {filtered_pieces}")
+        Board.print_instance(self.grid)
         return filtered_pieces
     
 
@@ -337,7 +332,7 @@ class Board:
                 if val in TETROMINO_SHAPES:
                     count+=1
             if count == 3 + n:
-                print(f"Square found at ({row}, {col}) with deltas: {deltas}")
+                #print(f"Square found at ({row}, {col}) with deltas: {deltas}")
                 return True
         
         return False
@@ -369,15 +364,15 @@ class Nuruomino(Problem):
         partir do estado passado como argumento."""
 
         all_pieces = []
-        for region in self.board.regions.values():
-            if len(region) != 0:
-                print(len(region))
-                pieces = Board.get_possible_pieces(region)
+        for region in self.board.regions:
+            if len(self.board.regions[region]) != 0:
+                print(len(self.board.regions[region]))
+                pieces = Board.get_possible_pieces(self.board.regions[region])
                 filtered_pieces = Board.filter_adjacent_pieces(self.board, pieces)
 
-                all_pieces.append(filtered_pieces)
+                for piece, pos in filtered_pieces:
+                    all_pieces.append((region, piece, pos))
         
-        Board.print_instance(self.board.grid)
         return all_pieces
         
         #TODO
@@ -388,6 +383,18 @@ class Nuruomino(Problem):
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
         self.actions(state)."""
+        region, piece, positions = action
+        print(f"action: {action}")
+        new_state = NuruominoState(self.board)
+        Board.place_piece(new_state.board.grid, piece, positions)
+        new_state.board.remove_region_positions(region)
+        new_state.board.filter_square_positions()
+
+        Board.print_instance(new_state.board.grid)
+        Board.print_regions(new_state.board)
+        print(new_state.board.possible_positions)
+
+        
 
         #TODO
         pass 
@@ -396,6 +403,7 @@ class Nuruomino(Problem):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
+        
         #TODO
         pass 
 
@@ -413,8 +421,13 @@ if __name__ == "__main__":
     #print(f"Possible_pos: {board.possible_positions}")
     
     problem = Nuruomino(board)
+
+    goal_node = depth_first_tree_search(problem)
+
     
     #s0 = NuruominoState(board)
 
     actions = problem.actions(problem.initial)
+    Board.print_instance(problem.initial.board.grid)
     print(actions)
+    res = problem.result(problem.initial, actions[0])
