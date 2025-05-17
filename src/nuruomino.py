@@ -48,7 +48,6 @@ square_deltas = [
 ]
 
 class NuruominoState:
-    state_id = 0
 
     def __init__(self, board):
         self.board = board
@@ -245,19 +244,6 @@ class Board:
             grid[i][j] = piece
 
 
-    def get_all_actions(self):
-        all_pieces = []
-        for region in self.regions.values():
-            if len(region) != 0:
-                print(len(region))
-                pieces = Board.get_possible_pieces(region)
-                filtered_pieces = Board.filter_adjacent_pieces(self, pieces)
-
-                all_pieces.append(filtered_pieces)
-        
-        Board.print_instance(self.grid)
-        return all_pieces
-
     def get_possible_pieces(region):
                
         xs, ys = zip(*region)
@@ -364,25 +350,36 @@ class Board:
     # TODO: outros metodos da classe Board
 
 class Nuruomino(Problem):
+
+    state_id = 0
+
     def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
         self.board = board
-        Board.fill_tetromino_regions(board)
         self.initial = NuruominoState(board)
         self.initial.state_id = 0 # ID do estado inicial
 
+        Board.fill_tetromino_regions(board)
         #TODO
         pass 
     
-    #def playable_piece(state: NuruominoState):
 
     def actions(self, state: NuruominoState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
 
-        #actions = [('L', [(0,0),(0,1),(1,0),(2,0)]),
-        #           ('L', [(0,0),(0,1),(1,0),(2,0)])
+        all_pieces = []
+        for region in self.board.regions.values():
+            if len(region) != 0:
+                print(len(region))
+                pieces = Board.get_possible_pieces(region)
+                filtered_pieces = Board.filter_adjacent_pieces(self.board, pieces)
 
+                all_pieces.append(filtered_pieces)
+        
+        Board.print_instance(self.board.grid)
+        return all_pieces
+        
         #TODO
         pass 
 
@@ -415,16 +412,9 @@ if __name__ == "__main__":
     # Board.print_regions(board.regions)
     #print(f"Possible_pos: {board.possible_positions}")
     
-    Board.fill_tetromino_regions(board)
+    problem = Nuruomino(board)
     
+    #s0 = NuruominoState(board)
 
-    #print(f"Possible_pos: {board.possible_positions}")
-    #print(len(board.possible_positions))
-    Board.print_instance(board.grid)
-    #problem = Nuruomino(board, regions)
-    all_pieces = Board.get_all_actions(board)
-    #possible_pieces = Board.get_possible_pieces(board.regions[6])
-    #print("/////////////////////")
-    #Board.filter_adjacent_pieces(board, possible_pieces)
-    #Board.print_instance(board.grid)
-    print(all_pieces)
+    actions = problem.actions(problem.initial)
+    print(actions)
