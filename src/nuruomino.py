@@ -29,7 +29,7 @@ TETROMINO_SHAPES = {
     'T': [
         [(0,0), (0,1), (0,2), (1,1)],
         [(0,1), (1,0), (1,1), (2,1)],
-        [(1,0), (1,1), (1,2), (0,1)],
+        [(0,1), (1,0), (1,1), (1,2)],
         [(0,0), (1,0), (1,1), (2,0)]
     ],
     'S': [
@@ -163,11 +163,15 @@ class Board:
             print()  # Linha em branco entre regiões
 
     def get_vector_region(region):
+        xs, ys = zip(*region)
+        
+        min_x = min(xs)
+        min_y = min(ys)
+
         piece = []
-        first_pos = region[0]
         for pos in region:
-            delta_row = pos[0] - first_pos[0]
-            delta_col = pos[1] - first_pos[1]
+            delta_row = pos[0] - min_x
+            delta_col = pos[1] - min_y
             piece.append((delta_row, delta_col))
         print(piece)
         return piece
@@ -249,8 +253,9 @@ class Board:
                 pieces = Board.get_possible_pieces(region)
                 filtered_pieces = Board.filter_adjacent_pieces(self, pieces)
 
-            all_pieces.append(filtered_pieces)
+                all_pieces.append(filtered_pieces)
         
+        Board.print_instance(self.grid)
         return all_pieces
 
     def get_possible_pieces(region):
@@ -389,7 +394,6 @@ class Nuruomino(Problem):
 
         #TODO
         pass 
-        
 
     def goal_test(self, state: NuruominoState):
         """Retorna True se e só se o estado passado como argumento é
@@ -418,8 +422,9 @@ if __name__ == "__main__":
     #print(len(board.possible_positions))
     Board.print_instance(board.grid)
     #problem = Nuruomino(board, regions)
-    
-    possible_pieces = Board.get_possible_pieces(board.regions[6])
-    print("/////////////////////")
-    Board.filter_adjacent_pieces(board, possible_pieces)
-    Board.print_instance(board.grid)
+    all_pieces = Board.get_all_actions(board)
+    #possible_pieces = Board.get_possible_pieces(board.regions[6])
+    #print("/////////////////////")
+    #Board.filter_adjacent_pieces(board, possible_pieces)
+    #Board.print_instance(board.grid)
+    print(all_pieces)
