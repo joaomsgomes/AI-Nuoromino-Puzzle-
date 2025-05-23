@@ -92,7 +92,7 @@ class Board:
                     adj_regions.append(r)
         
         
-        print(f"adj regions: {adj_regions}")
+        
         return adj_regions
 
         pass
@@ -175,7 +175,7 @@ class Board:
             delta_row = pos[0] - min_x
             delta_col = pos[1] - min_y
             piece.append((delta_row, delta_col))
-        #print(piece)
+        
         return piece
     
     def get_tetromino(region):
@@ -316,9 +316,7 @@ class Board:
 
             filtered_pieces.append(piece)
 
-            
-        print(f"Possible pieces after filtering: {filtered_pieces}")
-        Board.print_instance(self.grid)
+        
         return filtered_pieces
     
 
@@ -333,7 +331,7 @@ class Board:
                 if val in TETROMINO_SHAPES:
                     count+=1
             if count == 3 + n:
-                #print(f"Square found at ({row}, {col}) with deltas: {deltas}")
+                
                 return True
         
         return False
@@ -367,7 +365,7 @@ class Nuruomino(Problem):
         all_pieces = []
         for region in state.board.regions:
             if len(state.board.regions[region]) != 0:
-                print(len(state.board.regions[region]))
+                
                 pieces = Board.get_possible_pieces(state.board.regions[region])
                 filtered_pieces = Board.filter_adjacent_pieces(state.board, pieces)
 
@@ -385,7 +383,7 @@ class Nuruomino(Problem):
         das presentes na lista obtida pela execução de
         self.actions(state)."""
         region, piece, positions = action
-        print(f"action: {action}")
+        
         board_copy = copy.deepcopy(state.board)
         new_state = NuruominoState(board_copy)
         
@@ -394,9 +392,9 @@ class Nuruomino(Problem):
         new_state.board.remove_region_positions(region)
         new_state.board.filter_square_positions()
 
-        Board.print_instance(new_state.board.grid)
-        Board.print_regions(new_state.board)
-        print(new_state.board.possible_positions)
+        
+        
+        
 
         return new_state
 
@@ -438,10 +436,7 @@ class Nuruomino(Problem):
 
 if __name__ == "__main__":
     board = Board.parse_instance()
-    
     problem = Nuruomino(board)
-
     goal_node = depth_first_tree_search(problem)
-    print("Is Goal? ", problem.goal_test(goal_node.state))
-    Board.print_instance(goal_node.state.board.grid)
+    
 
