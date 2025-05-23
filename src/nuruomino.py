@@ -74,7 +74,7 @@ class Board:
         if 0 <= row < len(grid) and 0 <= col < len(grid):
             return grid[row][col]
         else:
-            return 0
+            return None
     
     def adjacent_regions(self, region:int) -> list:
         """Devolve uma lista das regiões que fazem fronteira com a região enviada no argumento."""
@@ -155,7 +155,7 @@ class Board:
 
     def print_instance(grid):
         for row in grid:
-            print(" ".join(str(x) for x in row))
+            print("\t".join(str(x) for x in row))
 
     def print_regions(self):
         for region_id, positions in self.regions.items():
@@ -212,7 +212,7 @@ class Board:
         
     def fill_tetromino_regions(self):
         
-        for r in range(1, len(self.regions)+1):
+        for r in list(self.regions.keys()):
             if len(self.regions[r]) == 4:
                 piece_letter = Board.get_tetromino(self.regions[r])
                 Board.place_piece(self.grid, piece_letter, self.regions[r])
@@ -297,7 +297,7 @@ class Board:
 
             piece_type, positions = piece
 
-            aux_grid = copy.deepcopy(self.grid)
+            aux_grid = [row[:] for row in self.grid]
 
             # Checa adjacências com o aux_grid diretamente
             has_invalid_adj = any(
@@ -372,6 +372,7 @@ class Nuruomino(Problem):
                 for piece, pos in filtered_pieces:
                     all_pieces.append((region, piece, pos))
         
+        #print(all_pieces)
         return all_pieces
         
         #TODO
@@ -392,9 +393,7 @@ class Nuruomino(Problem):
         new_state.board.remove_region_positions(region)
         new_state.board.filter_square_positions()
 
-        
-        
-        
+        #Board.print_instance(new_state.board.grid)
 
         return new_state
 
@@ -425,7 +424,7 @@ class Nuruomino(Problem):
         if (len(connections) < state.board.num_regions - 1):
             return False
         
-
+        self.board = state.board
         return True
 
 
@@ -437,6 +436,10 @@ class Nuruomino(Problem):
 if __name__ == "__main__":
     board = Board.parse_instance()
     problem = Nuruomino(board)
+    #Board.print_instance(problem.board.grid)
+    #Board.print_regions(problem.board)
+    #print(problem.board.possible_positions)
     goal_node = depth_first_tree_search(problem)
+    Board.print_instance(problem.board.grid)
     
 
