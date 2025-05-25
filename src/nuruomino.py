@@ -10,6 +10,7 @@ from search import *
 from sys import stdin
 from collections import defaultdict
 import copy
+from collections import deque
 
 TETROMINO_SHAPES = {
     'I': [
@@ -49,10 +50,13 @@ square_deltas = [
 
 class NuruominoState:
 
+    state_id = 0
+
     def __init__(self, board):
         self.board = board
-        self.id = Nuruomino.state_id
-        Nuruomino.state_id += 1
+        self.id = NuruominoState.state_id
+        NuruominoState.state_id += 1
+        self.possible_actions = []
 
     def __lt__(self, other):
         """ Este método é utilizado em caso de empate na gestão da lista
@@ -345,8 +349,6 @@ class Board:
 
 class Nuruomino(Problem):
 
-    state_id = 0
-
     def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
         self.board = board
@@ -357,22 +359,35 @@ class Nuruomino(Problem):
         #TODO
         pass 
     
+    '''
+    def get_region_actions(region, actions):
 
+        region_actions = []
+        for reg, let, pos in actions:
+            if reg == region:
+                region_actions.append((reg, let, pos)) 
+    
+        return region_actions
+    '''
+
+         
     def actions(self, state: NuruominoState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
 
         all_pieces = []
         for region in state.board.regions:
+            
             if len(state.board.regions[region]) != 0:
                 
                 pieces = Board.get_possible_pieces(state.board.regions[region])
                 filtered_pieces = Board.filter_adjacent_pieces(state.board, pieces)
 
                 for piece, pos in filtered_pieces:
+                    
                     all_pieces.append((region, piece, pos))
         
-        #print(all_pieces)
+        state.possible_actions = all_pieces
         return all_pieces
         
         #TODO
@@ -384,9 +399,13 @@ class Nuruomino(Problem):
         das presentes na lista obtida pela execução de
         self.actions(state)."""
         region, piece, positions = action
+
         
         board_copy = copy.deepcopy(state.board)
         new_state = NuruominoState(board_copy)
+
+        #new_state.prev_region_num_actions = len(Nuruomino.get_region_actions(
+        #                                    region, state.possible_actions))
         
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.append((piece, positions))
@@ -397,15 +416,8 @@ class Nuruomino(Problem):
 
         return new_state
 
+    def get_state_connections(state: NuruominoState):
 
-    def goal_test(self, state: NuruominoState):
-        """Retorna True se e só se o estado passado como argumento é
-        um estado objetivo. Deve verificar se todas as posições do tabuleiro
-        estão preenchidas de acordo com as regras do problema."""
-        
-        if len(state.board.regions) > 0:
-            return False
-        
         main_directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
         connections = []
 
@@ -421,8 +433,64 @@ class Nuruomino(Problem):
                         
                         connections.append((pos1, pos2, (i + dx, j + dy)))
 
-        if (len(connections) < state.board.num_regions - 1):
+        return connections
+    
+    def is_piece_connected(piece):
+
+        piece_set = set(piece)
+        visited = set()
+        queue = deque([piece[0]])
+
+        while queue:
+            r, c = queue.popleft()
+            visited.add((r, c))
+
+            for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+                nr, nc = r + dr, c + dc
+                if (nr, nc) in piece_set and (nr, nc) not in visited:
+                    queue.append((nr, nc))
+
+        return len(visited) == len(piece)
+
+    
+    def unique_nurikabe(self, state: NuruominoState):
+        
+        visited = set()
+        queue = deque([state.board.placed_pieces[0][1][0]])
+        
+        main_directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+
+        while queue:
+
+            i, j = queue.popleft()
+            visited.add((i, j))
+
+            for dx, dy in main_directions:
+                ni, nj = i + dx, j + dy
+                adj_piece = Board.get_value(state.board.grid, ni, nj)
+                
+                if adj_piece in TETROMINO_SHAPES:
+                    if (ni, nj) not in visited:
+                        queue.append((ni, nj))
+
+        
+        if len(visited) < state.board.num_regions * 4:
             return False
+        
+        return True
+            
+
+    
+    def goal_test(self, state: NuruominoState):
+        """Retorna True se e só se o estado passado como argumento é
+        um estado objetivo. Deve verificar se todas as posições do tabuleiro
+        estão preenchidas de acordo com as regras do problema."""
+        if len(state.board.regions) > 0:
+            return False
+        
+        if not self.unique_nurikabe(state):
+            return False
+        
         
         self.board = state.board
         return True
@@ -431,6 +499,11 @@ class Nuruomino(Problem):
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
         # TODO
+        h1 = node.state.board.num_regions - len(Nuruomino.get_state_connections(node.state))
+        return h1
+        
+
+
         pass
 
 if __name__ == "__main__":
@@ -439,7 +512,7 @@ if __name__ == "__main__":
     #Board.print_instance(problem.board.grid)
     #Board.print_regions(problem.board)
     #print(problem.board.possible_positions)
-    goal_node = depth_first_tree_search(problem)
+    goal_node = astar_search(problem)
     Board.print_instance(problem.board.grid)
     
 
