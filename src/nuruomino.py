@@ -11,6 +11,7 @@ from sys import stdin
 from collections import defaultdict
 import copy
 from collections import deque
+import time
 
 TETROMINO_SHAPES = {
     'I': [
@@ -163,11 +164,11 @@ class Board:
             print("\t".join(str(x) for x in row))
 
     def print_regions(self):
-        for region_id, positions in self.regions.items():
-            print(f"Região {region_id}:")
-            for pos in positions:
+        for region in self.regions:
+            print(f"Região {region}:")
+            for pos in self.regions[region]:
                 print(pos)
-            print()  # Linha em branco entre regiões
+            print()
 
     def get_vector_region(region):
         xs, ys = zip(*region)
@@ -222,7 +223,7 @@ class Board:
                 piece_letter = Board.get_tetromino(self.regions[r])
                 Board.place_piece(self.grid, piece_letter, self.regions[r])
                 self.placed_pieces.append((piece_letter, self.regions[r]))
-                self.regions.pop(r)
+                self.remove_region_positions(r)
         
         #self.filter_square_positions()
         #self.print_regions()
@@ -245,6 +246,18 @@ class Board:
     def place_piece(grid, piece, positions):
         for i, j in positions:
             grid[i][j] = piece
+
+    def remove_region_positions(self, region):
+        new_possible_positions = []
+
+        for pos in self.possible_positions:
+            if pos not in self.regions[region]:
+                new_possible_positions.append(pos)
+        
+        if (region in self.regions):
+            self.regions.pop(region)
+
+        self.possible_positions = new_possible_positions
 
     def get_possible_pieces(region):
                
@@ -337,10 +350,14 @@ class Board:
             self.fill_tetromino_regions()
             aux_grid = copy.deepcopy(self.grid)
 
-            for region in list(self.regions.keys()):
+            for region in self.regions:
                 visited_positions = []
                 possible_pieces = Board.get_possible_pieces(self.regions[region])
                 pieces = self.filter_actions(possible_pieces)
+                
+                #print(f"region {region}: {self.regions[region]}")
+                #print(f"Pieces: {pieces}")
+
                 
                 fixed_positions = pieces[0][1]
 
@@ -440,8 +457,15 @@ class Nuruomino(Problem):
         
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.append((piece, positions))
-        new_state.board.regions.pop(region)
+        new_state.board.remove_region_positions(region)
         new_state.board.filter_square_positions()
+
+        time.sleep(2)
+        print(new_state.state_id)
+        Board.print_instance(new_state.board.grid)
+        Board.print_regions(new_state.board)
+
+        #new_state.board.fixed_positions()
 
         #Board.print_instance(new_state.board.grid)
 
@@ -465,24 +489,6 @@ class Nuruomino(Problem):
                         connections.append((pos1, pos2, (i + dx, j + dy)))
 
         return connections
-    
-    def is_piece_connected(piece):
-
-        piece_set = set(piece)
-        visited = set()
-        queue = deque([piece[0]])
-
-        while queue:
-            r, c = queue.popleft()
-            visited.add((r, c))
-
-            for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
-                nr, nc = r + dr, c + dc
-                if (nr, nc) in piece_set and (nr, nc) not in visited:
-                    queue.append((nr, nc))
-
-        return len(visited) == len(piece)
-
     
     def unique_nurikabe(self, state: NuruominoState):
         
@@ -526,12 +532,23 @@ class Nuruomino(Problem):
         self.board = state.board
         return True
 
+    def broken_regions(state: NuruominoState):
+
+        count = 0
+        #Board.print_regions(state.board)
+        for region in state.board.regions:
+            if len(state.board.regions[region]) < 4:
+                count+=1
+
+        return count
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
         # TODO
         h1 = node.state.board.num_regions - len(Nuruomino.get_state_connections(node.state))
-        return h1
+        h2 = 50 * Nuruomino.broken_regions(node.state)
+        print(h2)
+        return h1 + h2
         
 
 if __name__ == "__main__":
