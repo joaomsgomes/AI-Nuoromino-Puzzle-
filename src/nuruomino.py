@@ -382,6 +382,7 @@ class Nuruomino(Problem):
         self.initial.state_id = 0 # ID do estado inicial
 
         board.fixed_positions() #Estado inicial de qualquer nó
+        #Board.print_instance(board.grid)
         #TODO
         pass 
     
@@ -401,7 +402,7 @@ class Nuruomino(Problem):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
 
-        all_pieces = []
+        all_actions = []
         for region in state.board.regions:
                 
                 if len(state.board.regions[region]) < 4:
@@ -410,18 +411,23 @@ class Nuruomino(Problem):
                 pieces = Board.get_possible_pieces(state.board.regions[region])
                 filtered_pieces = Board.filter_actions(state.board, pieces)
 
-                for piece, pos in filtered_pieces:
+                #print("Pieces: ", pieces)
+                #print("Filtered Pieces: ", filtered_pieces)
 
+                for piece, pos in filtered_pieces:
                     aux_board = copy.deepcopy(state.board)
                     Board.place_piece(aux_board.grid, piece, pos)
-
+                    aux_board.regions.pop(region)
                     if aux_board.fixed_positions():
-                        all_pieces.append((region, piece, pos))
+                        all_actions.append((region, piece, pos))
         
-        state.possible_actions = all_pieces
-        print("Actions: ", all_pieces)
-        return all_pieces
-        
+        state.possible_actions = all_actions
+        #print("ON STATE:", state.state_id)
+        #print("Actions: ", all_actions)
+        #print("Regions: ")
+        #Board.print_regions(state.board)
+        return all_actions
+    
 
     def result(self, state: NuruominoState, action):
         """Retorna o estado resultante de executar a 'action' sobre
@@ -441,11 +447,12 @@ class Nuruomino(Problem):
         
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.append((piece, positions))
-        new_state.board.regions.pop(region)
+        #new_state.board.regions.pop(region)
 
-        #time.sleep(2)
-        print("NEW STATE:", new_state.state_id)
-        Board.print_instance(new_state.board.grid)
+        #time.sleep(0.5)
+        #print("NEW STATE:", new_state.state_id)
+        #print("ACtion:", action)
+        #Board.print_instance(new_state.board.grid)
         #Board.print_regions(new_state.board)
 
         
@@ -494,7 +501,7 @@ class Nuruomino(Problem):
                 ni, nj = i + dx, j + dy
                 adj_piece = Board.get_value(state.board.grid, ni, nj)
                 
-                if adj_piece in TETROMINO_SHAPES:
+                if adj_piece in TETROMINO_SHAPES and adj_piece != 'P':
                     if (ni, nj) not in visited:
                         queue.append((ni, nj))
 
@@ -520,6 +527,7 @@ class Nuruomino(Problem):
         self.board = state.board
         return True
 
+    '''
     def broken_regions(state: NuruominoState):
 
         #Board.print_regions(state.board)
@@ -532,21 +540,46 @@ class Nuruomino(Problem):
             
         state = future_state
         return 0
+    '''
+
+    def priority_regions(node: Node):
+        
+        action_region = node.action[0]
+
+        #print("action region:", action_region)
+
+        sorted_regions = sorted(node.state.board.regions.keys(),
+                            key=lambda r: len(node.state.board.regions[r]))
+
+        #Board.print_instance(node.state.board.grid)
+        #print(sorted_regions)
+        h = 0
+        for reg in sorted_regions:
+            #print("reg", reg)
+            if action_region == reg:
+                return h
+            
+            h+=1
+        
+        return h
+
 
     def h(self, node: Node):
-        print("Node_Parent and Action:", node.state.id, node.action)
+        #print("Node_ID and Action:", node.state.id, node.action)
 
         """Função heuristica utilizada para a procura A*."""
         # TODO
-        h1 = len(Nuruomino.get_state_connections(node.state))
-        #h2 = Nuruomino.broken_regions(node.state)
+        h2 = 0
+        h1 = 0 - len(Nuruomino.get_state_connections(node.state))
 
+        if node.state.id != 0:
+            h2 = Nuruomino.priority_regions(node)
+            node.state.board.regions.pop(node.action[0])
 
-        print("Node State Board:")
-        #Board.print_instance(node.state.board.grid)
+        #print("Node State Board:")
         #print(f"h1: {h1}, h2: {h2}")
         #Board.print_regions(node.state.board)
-        return h1
+        return h1 + h2
         
 
 if __name__ == "__main__":
@@ -557,6 +590,6 @@ if __name__ == "__main__":
     #Board.print_instance(problem.board.grid)
     #Board.print_regions(problem.board)
     goal_node = astar_search(problem)
-    #Board.print_instance(problem.board.grid)
+    Board.print_instance(problem.board.grid)
     
 
