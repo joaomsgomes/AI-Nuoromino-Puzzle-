@@ -72,7 +72,6 @@ class Board:
         self.grid = grid  # Representa o tabuleiro como uma lista de listas
         self.size = len(grid)
         self.regions = regions  # Guarda as regiões
-        self.possible_positions = positions
         self.placed_pieces = []
         self.num_regions = len(regions)
 
@@ -217,49 +216,24 @@ class Board:
     
         
     def fill_tetromino_regions(self):
+
+        """Preenche as regioões do tabuleiro com tamanho 4 e remove as suas posições da região e adiciona a peça ao placed_pieces."""
         
         for r in list(self.regions.keys()):
             if len(self.regions[r]) == 4:
                 piece_letter = Board.get_tetromino(self.regions[r])
                 Board.place_piece(self.grid, piece_letter, self.regions[r])
                 self.placed_pieces.append((piece_letter, self.regions[r]))
-                self.remove_region_positions(r)
+                self.regions.pop(r)
         
-        #self.filter_square_positions()
         #self.print_regions()
-
-    def filter_square_positions(self):
-
-        filtered_positions = []
-
-        for i, j in self.possible_positions:
-            if not Board.is_square(self.grid, i, j, 0):
-                filtered_positions.append((i, j))
-            else:
-                region = Board.get_value(self.grid, i, j)
-
-                if (i,j) in self.regions[region]:
-                    self.regions[region].remove((i, j))
-
-        self.possible_positions = filtered_positions
     
     def place_piece(grid, piece, positions):
         for i, j in positions:
             grid[i][j] = piece
 
-    def remove_region_positions(self, region):
-        new_possible_positions = []
-
-        for pos in self.possible_positions:
-            if pos not in self.regions[region]:
-                new_possible_positions.append(pos)
-        
-        if (region in self.regions):
-            self.regions.pop(region)
-
-        self.possible_positions = new_possible_positions
-
     def get_possible_pieces(region):
+        """Retorna as peças que encaixam numa região"""
                
         xs, ys = zip(*region)
         possible_pieces = []
@@ -296,14 +270,16 @@ class Board:
 
 
     def filter_actions(self, possible_pieces):
-        """Remove as peças que não podem ser colocadas na região."""
+        
+        """Devolve as peças que podem ser colocadas na região atendendo às regras do L.I.T.S ."""
+        
         filtered_pieces = []
 
         for piece in possible_pieces:
 
             piece_type, positions = piece
 
-            aux_grid = [row[:] for row in self.grid]
+            aux_grid = copy.deepcopy(self.grid)
 
             # Checa adjacências com o aux_grid diretamente
             has_invalid_adj = any(
@@ -316,7 +292,7 @@ class Board:
 
             Board.place_piece(aux_grid, piece_type, positions)
 
-            forms_square = any(Board.is_square(aux_grid, row, col, 1) for row, col in positions)
+            forms_square = any(Board.is_square(aux_grid, row, col) for row, col in positions)
             if forms_square:
                 continue
 
@@ -326,9 +302,8 @@ class Board:
         return filtered_pieces
     
 
-    # n = 0: the position is free
-    # n = 1: the position is filled
-    def is_square(grid, row, col, n):
+    
+    def is_square(grid, row, col):
 
         for deltas in square_deltas:
             square = [Board.get_value(grid, row + dx, col + dy) for dx, dy in deltas]
@@ -336,12 +311,10 @@ class Board:
             for val in square:
                 if val in TETROMINO_SHAPES:
                     count+=1
-            if count == 3 + n:
-                
+            if count == 4:
                 return True
         
         return False
-    
     
     def fixed_positions(self):
 
@@ -351,13 +324,19 @@ class Board:
             aux_grid = copy.deepcopy(self.grid)
 
             for region in self.regions:
+
+                #if len(self.regions[region]) < 4:
+                #    continue
+
                 visited_positions = []
                 possible_pieces = Board.get_possible_pieces(self.regions[region])
                 pieces = self.filter_actions(possible_pieces)
                 
                 #print(f"region {region}: {self.regions[region]}")
                 #print(f"Pieces: {pieces}")
-
+                
+                if len(pieces) == 0:
+                    return False  
                 
                 fixed_positions = pieces[0][1]
 
@@ -383,13 +362,12 @@ class Board:
                 #print(f"Visited positions: {visited_positions}")
                 self.regions[region] = visited_positions
                 
+                
             if (aux_grid == self.grid):
                 self.grid = aux_grid
-                return 
+                return True
             else:
                 self.grid = aux_grid
-
-            
 
                         
 
@@ -425,21 +403,25 @@ class Nuruomino(Problem):
 
         all_pieces = []
         for region in state.board.regions:
-            
-            if len(state.board.regions[region]) != 0:
                 
+                if len(state.board.regions[region]) < 4:
+                    continue
+   
                 pieces = Board.get_possible_pieces(state.board.regions[region])
                 filtered_pieces = Board.filter_actions(state.board, pieces)
 
                 for piece, pos in filtered_pieces:
-                    
-                    all_pieces.append((region, piece, pos))
+
+                    aux_board = copy.deepcopy(state.board)
+                    Board.place_piece(aux_board.grid, piece, pos)
+
+                    if aux_board.fixed_positions():
+                        all_pieces.append((region, piece, pos))
         
         state.possible_actions = all_pieces
+        print("Actions: ", all_pieces)
         return all_pieces
         
-        #TODO
-        pass 
 
     def result(self, state: NuruominoState, action):
         """Retorna o estado resultante de executar a 'action' sobre
@@ -448,6 +430,8 @@ class Nuruomino(Problem):
         self.actions(state)."""
         region, piece, positions = action
 
+        if len(state.board.regions[region]) < 4:
+            return None
         
         board_copy = copy.deepcopy(state.board)
         new_state = NuruominoState(board_copy)
@@ -457,15 +441,19 @@ class Nuruomino(Problem):
         
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.append((piece, positions))
-        new_state.board.remove_region_positions(region)
-        new_state.board.filter_square_positions()
+        new_state.board.regions.pop(region)
 
-        time.sleep(2)
-        print(new_state.state_id)
+        #time.sleep(2)
+        print("NEW STATE:", new_state.state_id)
         Board.print_instance(new_state.board.grid)
-        Board.print_regions(new_state.board)
+        #Board.print_regions(new_state.board)
 
+        
+        
         #new_state.board.fixed_positions()
+        #print("after fixed positions: \n")
+        #Board.print_instance(new_state.board.grid)
+        #Board.print_regions(new_state.board)
 
         #Board.print_instance(new_state.board.grid)
 
@@ -534,21 +522,31 @@ class Nuruomino(Problem):
 
     def broken_regions(state: NuruominoState):
 
-        count = 0
         #Board.print_regions(state.board)
-        for region in state.board.regions:
-            if len(state.board.regions[region]) < 4:
-                count+=1
+        future_state = copy.deepcopy(state)
+        future_state.board.fixed_positions()
 
-        return count
+        for region in future_state.board.regions:
+            if len(future_state.board.regions[region]) < 4:
+                return 1000
+            
+        state = future_state
+        return 0
 
     def h(self, node: Node):
+        print("Node_Parent and Action:", node.state.id, node.action)
+
         """Função heuristica utilizada para a procura A*."""
         # TODO
-        h1 = node.state.board.num_regions - len(Nuruomino.get_state_connections(node.state))
-        h2 = 50 * Nuruomino.broken_regions(node.state)
-        print(h2)
-        return h1 + h2
+        h1 = len(Nuruomino.get_state_connections(node.state))
+        #h2 = Nuruomino.broken_regions(node.state)
+
+
+        print("Node State Board:")
+        #Board.print_instance(node.state.board.grid)
+        #print(f"h1: {h1}, h2: {h2}")
+        #Board.print_regions(node.state.board)
+        return h1
         
 
 if __name__ == "__main__":
@@ -558,8 +556,7 @@ if __name__ == "__main__":
     
     #Board.print_instance(problem.board.grid)
     #Board.print_regions(problem.board)
-    #print(problem.board.possible_positions)
     goal_node = astar_search(problem)
-    Board.print_instance(problem.board.grid)
+    #Board.print_instance(problem.board.grid)
     
 
