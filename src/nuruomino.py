@@ -68,7 +68,7 @@ class NuruominoState:
 class Board:
     """Representação interna de um tabuleiro do Puzzle Nuruomino."""
 
-    def __init__(self, grid, regions, positions):
+    def __init__(self, grid, regions):
         self.grid = grid  # Representa o tabuleiro como uma lista de listas
         self.size = len(grid)
         self.regions = regions  # Guarda as regiões
@@ -135,8 +135,7 @@ class Board:
         e retorna uma instância da classe Board.
         """
         board = []
-        positions = []
-
+        
         for line in stdin:
             if not line.strip():
                 continue
@@ -147,13 +146,12 @@ class Board:
         region_dict = defaultdict(list)
         for i, row in enumerate(board):
             for j, val in enumerate(row):
-                positions.append((i,j))
                 region_dict[val].append((i, j))
         
         # Lista de regiões (cada uma é uma lista de coordenadas)
         #regions = list(region_dict.values())
 
-        return Board(board, region_dict, positions)
+        return Board(board, region_dict)
     
         #TODO
         pass
@@ -564,22 +562,33 @@ class Nuruomino(Problem):
         return h
 
 
+    def broken_regions(node: Node):
+
+       for region in node.state.board.regions:
+            if len(node.state.board.regions[region]) < 4:
+                return 1000
+            
+       return 0    
+    
     def h(self, node: Node):
         #print("Node_ID and Action:", node.state.id, node.action)
 
         """Função heuristica utilizada para a procura A*."""
-        # TODO
-        h2 = 0
+      
         h1 = 0 - len(Nuruomino.get_state_connections(node.state))
+        h2 = 0
 
         if node.state.id != 0:
             h2 = Nuruomino.priority_regions(node)
             node.state.board.regions.pop(node.action[0])
 
+        h3 = len(node.state.board.regions) # Priorizar estados com menos regiões por preencher
+        h4 = Nuruomino.broken_regions(node) # Por ver se vale a pena
+
         #print("Node State Board:")
         #print(f"h1: {h1}, h2: {h2}")
         #Board.print_regions(node.state.board)
-        return h1 + h2
+        return h1 + h2 + h3 + h4
         
 
 if __name__ == "__main__":
