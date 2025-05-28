@@ -99,7 +99,7 @@ class Board:
     
     def adjacent_regions(self, region:int) -> list:
         """Devolve uma lista das regiões que fazem fronteira com a região enviada no argumento."""
-        #TODO
+        
         positions = self.regions[region]
         
         adj_regions = []
@@ -113,14 +113,13 @@ class Board:
                     adj_regions.append(r)
         
         
-        
         return adj_regions
 
-        pass
+        
     
     def adjacent_positions(self, row:int, col:int) -> list:
         """Devolve as posições adjacentes à região, em todas as direções, incluindo diagonais."""
-        #TODO
+        
         deltas = [(-1, -1), (-1, 0), (-1, 1),
               ( 0, -1),          ( 0, 1),
               ( 1, -1), ( 1, 0), ( 1, 1)]
@@ -133,7 +132,7 @@ class Board:
 
         return adj_pos
     
-        pass
+        
 
     def adjacent_values(self, row:int, col:int) -> list:
         """Devolve os valores das celulas adjacentes à região, em todas as direções, incluindo diagonais."""
@@ -164,13 +163,13 @@ class Board:
             for j, val in enumerate(row):
                 region_dict[val].append((i, j))
         
-        # Lista de regiões (cada uma é uma lista de coordenadas)
-        #regions = list(region_dict.values())
+        
 
         return Board(board, region_dict)
     
         #TODO
         pass
+    
 
     def print_instance(grid):
         for row in grid:
@@ -282,25 +281,17 @@ class Board:
         return possible_pieces
 
 
-    def filter_actions(self, possible_pieces, fixed_positions):
+    def filter_actions(self, possible_pieces):
         
         """Devolve as peças que podem ser colocadas na região atendendo às regras do L.I.T.S ."""
         
         grid = [row[:] for row in self.grid]
-
-        for i, j in fixed_positions:
-            grid[i][j] = 'P'
-
-        #print("With Ps: ")
-        #Board.print_instance(grid)
 
         filtered_pieces = []
 
         for piece in possible_pieces:
 
             piece_type, positions = piece
-
-            aux_grid = [row[:] for row in grid]
 
             # Checa adjacências com o aux_grid diretamente
             has_invalid_adj = any(
@@ -310,6 +301,8 @@ class Board:
 
             if has_invalid_adj:
                 continue
+
+            aux_grid = [row[:] for row in grid]
 
             Board.place_piece(aux_grid, piece_type, positions)
 
@@ -334,89 +327,20 @@ class Board:
                 return True
         
         return False
-    
-
-
-    def fixed_positions(self):
-
-        queue = deque()
-        queued_regions = set()
-
-        while True:
             
-            self.fill_tetromino_regions()
-
-            queue.extend(list(self.regions))
-
-            changed = False
-
-            while queue:
-
-                print("Affected regions: ", queue)
-
-                region = queue.popleft()
-                queued_regions.discard(region)
-                #if len(self.regions[region]) < 4:
-                #    continue
-
-                visited_positions = []
-                #pieces = Board.get_possible_pieces(self.regions[region])
-                #pieces = self.filter_actions(possible_pieces)
-                #print(f"region {region}: {self.regions[region]}")
-                #print(f"Pieces: {pieces}")
-
-                pieces = self.filter_actions(self.possible_pieces[region])
-
-                print("Pieces: ", pieces)
-                
-                if not pieces:
-                    return False  
-                
-                fixed_positions = pieces[0][1]
-
-                #print(f"Starting Fixed positions: {fixed_positions}")
-
-                for let, positions in pieces:
-                    aux = []
-                    for (i, j) in positions:
-                        
-                        if (i, j) not in visited_positions:
-                            visited_positions.append((i,j))
-                        
-                        if (i, j) in fixed_positions:
-                            aux.append((i, j))
-                    
-                    fixed_positions = aux
-
-                #print(f"Fixed positions: {fixed_positions}")
-                if len(fixed_positions) > 0:
-                    for a, b in fixed_positions:
-                        if self.grid[a][b] != 'P':
-                            self.grid[a][b] = 'P'
-                            changed = True
-                            for adj_r in self.region_adj_regions[region]:
-                                if adj_r not in queued_regions and adj_r in self.regions.keys():
-                                    queue.append(adj_r)
-                                    queued_regions.add(adj_r)
-
-                #print(f"Visited positions: {visited_positions}")
-                self.regions[region] = visited_positions
-                self.possible_pieces[region] = pieces
-                
-
-            if not changed:
-                return True
-            
-            
-    def fixed_positions2(self, affected_regions):
+    def fixed_positions(self, affected_regions):
         #COLOCAR P's na grid
-        #grid_copy = copy.deepcopy(self.grid)
-        visited_positions = set()
-        #print("affected regions: ", affected_regions)
-
-        all_fixed_positions = []
-
+        
         for region in affected_regions:
+                        
+            filtered_actions = self.filter_actions(self.possible_pieces[region])
+            
+            if len(filtered_actions) == 0:
+                return False
+            
+            self.possible_pieces[region] = filtered_actions
+
+            visited_positions = set()
 
             region_pieces = self.possible_pieces[region]
             fixed_positions = region_pieces[0][1]
@@ -430,21 +354,12 @@ class Board:
                         aux.append((i, j))
                 fixed_positions = aux
             
-            for f in fixed_positions:
-                all_fixed_positions.append(f)
+            for i, j in fixed_positions:
+                if self.grid[i][j] != 'P':
+                    self.grid[i][j] = 'P'
 
-            self.regions[region] = list(visited_positions)
+            #self.regions[region] = list(visited_positions)
     
-
-        for region in affected_regions:
-            #print("region", self.possible_pieces[region])
-            filtered_actions = self.filter_actions(self.possible_pieces[region], all_fixed_positions)
-
-            #print("filtered actions", self.possible_pieces[region])
-            if len(filtered_actions) == 0:
-                return False
-            
-            self.possible_pieces[region] = filtered_actions
             
         return True
 
@@ -474,33 +389,18 @@ class Nuruomino(Problem):
         self.initial = NuruominoState(board)
         self.initial.state_id = 0 # ID do estado inicial
 
+
         self.board.fill_tetromino_regions()
-        #Board.print_regions(self.board.regions)
         board.set_possible_pieces()
         board.set_adjacent_regions()
         
+        self.board.fixed_positions(list(self.board.regions.keys())) #Estado inicial de qualquer no
+        
+        
 
-        #Board.print_regions(self.board.possible_pieces)
-
-        self.board.fixed_positions2(list(self.board.regions.keys())) #Estado inicial de qualquer no
-        #print("BOARD:")
-        Board.print_instance(board.grid)
-
-        #Board.print_regions(self.board.possible_pieces)
+        
         #TODO
         pass 
-    
-    '''
-    def get_region_actions(region, actions):
-
-        region_actions = []
-        for reg, let, pos in actions:
-            if reg == region:
-                region_actions.append((reg, let, pos)) 
-    
-        return region_actions
-    '''
-
 
     def actions(self, state: NuruominoState):
         """Retorna uma lista de ações que podem ser executadas a
@@ -536,26 +436,27 @@ class Nuruomino(Problem):
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.append((piece, positions))
 
-        #print("piece placed on region::: ", region)
         new_state.region_priority = Nuruomino.find_region_priority(state.board.regions, region)
-        #print("priorityyyyyy::: ", new_state.region_priority)
-        Board.print_regions(state.board.regions)
+    
         new_state.board.regions.pop(region)
         new_state.board.possible_pieces.pop(region)
 
-        #print("NEW STATE:", new_state.state_id)
-
+        
         affected_regions = [r for r in new_state.board.region_adj_regions[region] if r in new_state.board.regions.keys()]
 
-        if not new_state.board.fixed_positions2(affected_regions):
-            #print("NOT VALID")
+        if not new_state.board.fixed_positions(affected_regions):
             new_state.bad_path = True
 
         #print("\n\n\n")
 
         return new_state
-    
-    def unique_nurikabe(self, state: NuruominoState):
+              
+    def goal_test(self, state: NuruominoState):
+        """Retorna True se e só se o estado passado como argumento é
+        um estado objetivo. Deve verificar se todas as posições do tabuleiro
+        estão preenchidas de acordo com as regras do problema."""
+        if len(state.board.regions) > 0:
+            return False
         
         visited = set()
         queue = deque([state.board.placed_pieces[0][1][0]])
@@ -578,36 +479,9 @@ class Nuruomino(Problem):
         if len(visited) < state.board.num_regions * 4:
             return False
         
-        return True
-              
-    def goal_test(self, state: NuruominoState):
-        """Retorna True se e só se o estado passado como argumento é
-        um estado objetivo. Deve verificar se todas as posições do tabuleiro
-        estão preenchidas de acordo com as regras do problema."""
-        if len(state.board.regions) > 0:
-            return False
-        
-        if not self.unique_nurikabe(state):
-            return False
-        
-        
         self.board = state.board
+
         return True
-
-    '''
-    def broken_regions(state: NuruominoState):
-
-        #Board.print_regions(state.board)
-        future_state = copy.deepcopy(state)
-        future_state.board.fixed_positions()
-
-        for region in future_state.board.regions:
-            if len(future_state.board.regions[region]) < 4:
-                return 1000
-            
-        state = future_state
-        return 0
-    '''
 
     def h_state_connections(state: NuruominoState):
 
@@ -647,14 +521,6 @@ class Nuruomino(Problem):
             h+=1
         
         return h
-
-    def broken_regions(node: Node):
-
-       for region in node.state.board.regions:
-            if len(node.state.board.regions[region]) < 4:
-                return 1000
-            
-       return 0
     
     def h_bad_path(state: NuruominoState):
         if state.bad_path:
@@ -686,6 +552,9 @@ class Nuruomino(Problem):
         #h4 = Nuruomino.broken_regions(node) # Por ver se vale a pena
         h4 = Nuruomino.h_bad_path(node.state)
 
+        #print("Node_id:", node.state.id)
+        #print("Node_depth:", node.depth)
+        #print("h1:", h1, "h2:", h2, "h3:", h3, "h4:", h4)
         #print("Node State Board:")
         #print(f"h1: {h1}, h2: {h2}, h3: {h3}, h4: {h4}")
         #Board.print_regions(node.state.board)
@@ -693,10 +562,10 @@ class Nuruomino(Problem):
         w2 = 2.0
         w3 = 1.0
 
-        h = (w1*h1 + w2*h2 + w3*h3) * h4
+        h = ( w1*h1 + w2*h2 + w3*h3) * h4
 
-        #print("h: ", 1/h)
-
+        #rint("Heuristic value:", h)
+        #print("\n")
 
         return h
         
@@ -709,6 +578,7 @@ if __name__ == "__main__":
     #Board.print_instance(problem.board.grid)
     #Board.print_regions(problem.board)
     goal_node = astar_search(problem)
+    #print("SOLUTION: ")
     Board.print_instance(problem.board.grid)
     
 
