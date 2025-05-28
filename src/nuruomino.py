@@ -109,7 +109,7 @@ class Board:
             
             
             for r in adj_val:
-                if r not in adj_regions and r != region:
+                if r not in adj_regions and r != region and r not in TETROMINO_SHAPES and r in self.regions.keys():
                     adj_regions.append(r)
         
         
@@ -282,17 +282,25 @@ class Board:
         return possible_pieces
 
 
-    def filter_actions(self, possible_pieces):
+    def filter_actions(self, possible_pieces, fixed_positions):
         
         """Devolve as peças que podem ser colocadas na região atendendo às regras do L.I.T.S ."""
         
+        grid = [row[:] for row in self.grid]
+
+        for i, j in fixed_positions:
+            grid[i][j] = 'P'
+
+        #print("With Ps: ")
+        #Board.print_instance(grid)
+
         filtered_pieces = []
 
         for piece in possible_pieces:
 
             piece_type, positions = piece
 
-            aux_grid = copy.deepcopy(self.grid)
+            aux_grid = [row[:] for row in grid]
 
             # Checa adjacências com o aux_grid diretamente
             has_invalid_adj = any(
@@ -403,16 +411,13 @@ class Board:
     def fixed_positions2(self, affected_regions):
         #COLOCAR P's na grid
         #grid_copy = copy.deepcopy(self.grid)
-        visited_positions = []
-        print("affected regions: ", affected_regions)
+        visited_positions = set()
+        #print("affected regions: ", affected_regions)
+
+        all_fixed_positions = []
 
         for region in affected_regions:
-            for i,j in self.regions[region]:
-                self.grid[i][j] = region
 
-            if len(self.regions[region]) < 4:
-                return False
-            
             region_pieces = self.possible_pieces[region]
             fixed_positions = region_pieces[0][1]
 
@@ -420,27 +425,43 @@ class Board:
                 aux = []
                 for (i, j) in positions:
                     if (i, j) not in visited_positions:
-                        visited_positions.append((i,j))
+                        visited_positions.add((i,j))
                     if (i, j) in fixed_positions:
                         aux.append((i, j))
                 fixed_positions = aux
             
-            if len(fixed_positions) > 0:
-                for a, b in fixed_positions:
-                    if self.grid[a][b] != 'P':
-                        self.grid[a][b] = 'P'
+            for f in fixed_positions:
+                all_fixed_positions.append(f)
 
+            self.regions[region] = list(visited_positions)
+    
 
+        for region in affected_regions:
             #print("region", self.possible_pieces[region])
-            self.filter_actions(self.possible_pieces[region])
-            #print("filtered", self.possible_pieces[region])
+            filtered_actions = self.filter_actions(self.possible_pieces[region], all_fixed_positions)
 
-            if len(self.possible_pieces[region]) == 0:
-                self.possible_pieces.pop(region)
-                print("removed positions from region ", region)
+            #print("filtered actions", self.possible_pieces[region])
+            if len(filtered_actions) == 0:
                 return False
             
+            self.possible_pieces[region] = filtered_actions
+            
         return True
+
+
+    def clone(self):   
+
+        new_grid = [row[:] for row in self.grid]
+        new_regions = {k: v[:] for k, v in self.regions.items()}
+        new_possible_pieces = {k: v[:] for k, v in self.possible_pieces.items()}
+        new_region_adj_regions = {k: v[:] for k, v in self.region_adj_regions.items()}
+        new_placed_pieces = [ (piece, positions[:]) for piece, positions in self.placed_pieces ]
+        b = Board(new_grid, new_regions)
+        b.possible_pieces = new_possible_pieces
+        b.region_adj_regions = new_region_adj_regions
+        b.placed_pieces = new_placed_pieces
+        b.num_regions = self.num_regions
+        return b
         
 
     # TODO: outros metodos da classe Board
@@ -457,14 +478,15 @@ class Nuruomino(Problem):
         #Board.print_regions(self.board.regions)
         board.set_possible_pieces()
         board.set_adjacent_regions()
+        
 
-        Board.print_regions(self.board.possible_pieces)
+        #Board.print_regions(self.board.possible_pieces)
 
         self.board.fixed_positions2(list(self.board.regions.keys())) #Estado inicial de qualquer no
-        print("BOARD:")
+        #print("BOARD:")
         Board.print_instance(board.grid)
 
-        Board.print_regions(self.board.possible_pieces)
+        #Board.print_regions(self.board.possible_pieces)
         #TODO
         pass 
     
@@ -486,24 +508,15 @@ class Nuruomino(Problem):
 
         all_actions = []
         for region in state.board.regions:
-            
-            #if len(state.board.regions[region]) != 0:
-                
-                #pieces = Board.get_possible_pieces(state.board.regions[region])
-                #filtered_pieces = Board.filter_actions(state.board, pieces)
-                
+
                 pieces = state.board.possible_pieces[region]
 
                 for piece, pos in pieces:
                     
                     all_actions.append((region, piece, pos))
-        
-        #print("ON STATE:", state.state_id)
-        #Board.print_instance(state.board.grid)
-        #print("Actions: ", all_actions)
-        #Board.print_regions(state.board.regions)
+
         #time.sleep(1)
-        #print("Regions: ")
+        
         return all_actions
     
 
@@ -517,67 +530,30 @@ class Nuruomino(Problem):
         if len(state.board.regions[region]) < 4:
             return None
         
-        board_copy = copy.deepcopy(state.board)
+        board_copy = state.board.clone()
         new_state = NuruominoState(board_copy)
-
         
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.append((piece, positions))
 
-        print("piece placed on region::: ", region)
+        #print("piece placed on region::: ", region)
         new_state.region_priority = Nuruomino.find_region_priority(state.board.regions, region)
-        print("priorityyyyyy::: ", new_state.region_priority)
+        #print("priorityyyyyy::: ", new_state.region_priority)
+        Board.print_regions(state.board.regions)
         new_state.board.regions.pop(region)
         new_state.board.possible_pieces.pop(region)
 
-        print("NEW STATE:", new_state.state_id)
-        Board.print_instance(new_state.board.grid)
-
-        if not new_state.board.fixed_positions2(new_state.board.region_adj_regions[region]):
-            print("NOT VALID")
-            new_state.bad_path = True
-        
-
-
-        #if not new_state.board.fixed_positions2():
-        #    new_state.bad_path = True
-
-
-        #time.sleep(0.5)
         #print("NEW STATE:", new_state.state_id)
-        #print("ACtion:", action)
-        #Board.print_instance(new_state.board.grid)
-        #Board.print_regions(new_state.board.regions)
 
-        
-        
-        #new_state.board.fixed_positions()
-        #print("after fixed positions: \n")
-        #Board.print_instance(new_state.board.grid)
-        #Board.print_regions(new_state.board)
+        affected_regions = [r for r in new_state.board.region_adj_regions[region] if r in new_state.board.regions.keys()]
 
-        #Board.print_instance(new_state.board.grid)
+        if not new_state.board.fixed_positions2(affected_regions):
+            #print("NOT VALID")
+            new_state.bad_path = True
+
+        #print("\n\n\n")
 
         return new_state
-
-    def get_state_connections(state: NuruominoState):
-
-        main_directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-        connections = []
-
-        for piece_letter, positions in state.board.placed_pieces:
-            for (i,j) in positions:
-                for dx, dy in main_directions:
-                    adj_piece = Board.get_value(state.board.grid, i+dx, j+dy)
-                    pos1 = (i, j)
-                    pos2 = (i + dx, j + dy)
-                    if (adj_piece in TETROMINO_SHAPES and adj_piece != piece_letter
-                        and (pos1, pos2) not in connections
-                        and (pos2, pos1) not in connections):
-                        
-                        connections.append((pos1, pos2, (i + dx, j + dy)))
-
-        return connections
     
     def unique_nurikabe(self, state: NuruominoState):
         
@@ -633,6 +609,27 @@ class Nuruomino(Problem):
         return 0
     '''
 
+    def h_state_connections(state: NuruominoState):
+
+        main_directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        connections = []
+
+        for piece_letter, positions in state.board.placed_pieces:
+            for (i,j) in positions:
+                for dx, dy in main_directions:
+                    adj_piece = Board.get_value(state.board.grid, i+dx, j+dy)
+                    pos1 = (i, j)
+                    pos2 = (i + dx, j + dy)
+                    if (adj_piece in TETROMINO_SHAPES and adj_piece != piece_letter
+                        and (pos1, pos2) not in connections
+                        and (pos2, pos1) not in connections):
+                        
+                        connections.append((pos1, pos2, (i + dx, j + dy)))
+
+        if len(connections) == 0:
+            return 0.5
+        return len(connections)
+
     def find_region_priority(regions, action_region):
     
         sorted_regions = sorted(regions.keys(),
@@ -640,7 +637,7 @@ class Nuruomino(Problem):
 
         #Board.print_instance(node.state.board.grid)
         #print(sorted_regions)
-        print("all regions sorted", sorted_regions)
+        #print("all regions sorted", sorted_regions)
         h = 0
         for reg in sorted_regions:
             #print("reg", reg)
@@ -651,7 +648,6 @@ class Nuruomino(Problem):
         
         return h
 
-
     def broken_regions(node: Node):
 
        for region in node.state.board.regions:
@@ -660,34 +656,49 @@ class Nuruomino(Problem):
             
        return 0
     
-    def is_bad_path(node: Node):
-        if node.state.bad_path:
+    def h_bad_path(state: NuruominoState):
+        if state.bad_path:
             return 1000
-        return 0
+        return 1
     
-    def get_region_priority(node: Node):
-        return node.state.region_priority
+    def h_region_priority(state: NuruominoState):
+        if state.region_priority == 0:
+            return 0.5
+        return state.region_priority
+    
+    def h_state_id(state: NuruominoState):
+        if state.state_id == 0:
+            return 0.5
+        return state.state_id
     
     def h(self, node: Node):
-        print("Node_ID and Action:", node.state.id, node.action)
+        #print("Node_ID and Action:", node.state.id, node.action)
 
         """Função heuristica utilizada para a procura A*."""
       
-        h1 = 0 - len(Nuruomino.get_state_connections(node.state))
+        h1 = 1 / Nuruomino.h_state_connections(node.state)
 
-        h2 = 0
-        if node.state.id != 0:
-            h2 = Nuruomino.get_region_priority(node)
-            #node.state.board.regions.pop(node.action[0])
+        h2 = Nuruomino.h_region_priority(node.state)
 
-        #h3 = len(node.state.board.regions) # Priorizar estados com menos regiões por preencher
+        #h3 = 1 / Nuruomino.h_state_id(node.state)
+
+        h3 = len(node.state.board.regions) # Priorizar estados com menos regiões por preencher
         #h4 = Nuruomino.broken_regions(node) # Por ver se vale a pena
-        h4 = Nuruomino.is_bad_path(node)
+        h4 = Nuruomino.h_bad_path(node.state)
 
         #print("Node State Board:")
-        print(f"h1: {h1}, h2: {h2}, h4: {h4}")
+        #print(f"h1: {h1}, h2: {h2}, h3: {h3}, h4: {h4}")
         #Board.print_regions(node.state.board)
-        return h1 + 50*h2 + h4
+        w1 = 0.1
+        w2 = 2.0
+        w3 = 1.0
+
+        h = (w1*h1 + w2*h2 + w3*h3) * h4
+
+        #print("h: ", 1/h)
+
+
+        return h
         
 
 if __name__ == "__main__":
