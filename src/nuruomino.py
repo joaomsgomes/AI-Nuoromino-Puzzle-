@@ -404,9 +404,14 @@ class Board:
         #COLOCAR P's na grid
         #grid_copy = copy.deepcopy(self.grid)
         visited_positions = []
-        print(affected_regions)
+        print("affected regions: ", affected_regions)
 
         for region in affected_regions:
+            for i,j in self.regions[region]:
+                self.grid[i][j] = region
+
+            if len(self.regions[region]) < 4:
+                return False
             
             region_pieces = self.possible_pieces[region]
             fixed_positions = region_pieces[0][1]
@@ -426,9 +431,16 @@ class Board:
                         self.grid[a][b] = 'P'
 
 
-            print("region", self.possible_pieces[region])
+            #print("region", self.possible_pieces[region])
             self.filter_actions(self.possible_pieces[region])
-            print("filtered", self.possible_pieces[region])
+            #print("filtered", self.possible_pieces[region])
+
+            if len(self.possible_pieces[region]) == 0:
+                self.possible_pieces.pop(region)
+                print("removed positions from region ", region)
+                return False
+            
+        return True
         
 
     # TODO: outros metodos da classe Board
@@ -442,7 +454,7 @@ class Nuruomino(Problem):
         self.initial.state_id = 0 # ID do estado inicial
 
         self.board.fill_tetromino_regions()
-        Board.print_regions(self.board.regions)
+        #Board.print_regions(self.board.regions)
         board.set_possible_pieces()
         board.set_adjacent_regions()
 
@@ -512,20 +524,18 @@ class Nuruomino(Problem):
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.append((piece, positions))
 
+        print("piece placed on region::: ", region)
         new_state.region_priority = Nuruomino.find_region_priority(state.board.regions, region)
+        print("priorityyyyyy::: ", new_state.region_priority)
         new_state.board.regions.pop(region)
         new_state.board.possible_pieces.pop(region)
 
         print("NEW STATE:", new_state.state_id)
         Board.print_instance(new_state.board.grid)
 
-        for adj_r in new_state.board.region_adj_regions[region]:
-            if adj_r in list(new_state.board.regions.keys()):
-
-                print("adjacent region pieces: ", adj_r)
-                print(new_state.board.possible_pieces[adj_r])
-                new_state.board.filter_actions(new_state.board.possible_pieces[adj_r])
-                print(new_state.board.possible_pieces[adj_r])
+        if not new_state.board.fixed_positions2(new_state.board.region_adj_regions[region]):
+            print("NOT VALID")
+            new_state.bad_path = True
         
 
 
@@ -537,7 +547,7 @@ class Nuruomino(Problem):
         #print("NEW STATE:", new_state.state_id)
         #print("ACtion:", action)
         #Board.print_instance(new_state.board.grid)
-        Board.print_regions(new_state.board.regions)
+        #Board.print_regions(new_state.board.regions)
 
         
         
@@ -630,6 +640,7 @@ class Nuruomino(Problem):
 
         #Board.print_instance(node.state.board.grid)
         #print(sorted_regions)
+        print("all regions sorted", sorted_regions)
         h = 0
         for reg in sorted_regions:
             #print("reg", reg)
@@ -658,25 +669,25 @@ class Nuruomino(Problem):
         return node.state.region_priority
     
     def h(self, node: Node):
-        #print("Node_ID and Action:", node.state.id, node.action)
+        print("Node_ID and Action:", node.state.id, node.action)
 
         """Função heuristica utilizada para a procura A*."""
       
         h1 = 0 - len(Nuruomino.get_state_connections(node.state))
-        h2 = 0
 
+        h2 = 0
         if node.state.id != 0:
             h2 = Nuruomino.get_region_priority(node)
             #node.state.board.regions.pop(node.action[0])
 
-        h3 = len(node.state.board.regions) # Priorizar estados com menos regiões por preencher
+        #h3 = len(node.state.board.regions) # Priorizar estados com menos regiões por preencher
         #h4 = Nuruomino.broken_regions(node) # Por ver se vale a pena
         h4 = Nuruomino.is_bad_path(node)
 
         #print("Node State Board:")
-        #print(f"h1: {h1}, h2: {h2}")
+        print(f"h1: {h1}, h2: {h2}, h4: {h4}")
         #Board.print_regions(node.state.board)
-        return h1 + h2 + h3 + h4
+        return h1 + 50*h2 + h4
         
 
 if __name__ == "__main__":
