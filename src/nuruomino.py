@@ -79,7 +79,7 @@ class Board:
         self.possible_pieces = {}
         self.region_adj_regions = {}
         
-        self.placed_pieces = []
+        self.placed_pieces = set()
         self.num_regions = len(regions)
 
 
@@ -236,7 +236,7 @@ class Board:
             if len(self.regions[r]) == 4:
                 piece_letter = Board.get_tetromino(self.regions[r])
                 Board.place_piece(self.grid, piece_letter, self.regions[r])
-                self.placed_pieces.append((piece_letter, self.regions[r]))
+                self.placed_pieces.add((piece_letter, tuple(self.regions[r])))
                 self.regions.pop(r)
                 
                 
@@ -340,7 +340,7 @@ class Board:
         new_regions = {k: v[:] for k, v in self.regions.items()}
         new_possible_pieces = {k: v[:] for k, v in self.possible_pieces.items()}
         new_region_adj_regions = {k: v[:] for k, v in self.region_adj_regions.items()}
-        new_placed_pieces = [ (piece, positions[:]) for piece, positions in self.placed_pieces ]
+        new_placed_pieces = set((piece, tuple(positions)) for piece, positions in self.placed_pieces)
         b = Board(new_grid, new_regions)
         b.possible_pieces = new_possible_pieces
         b.region_adj_regions = new_region_adj_regions
@@ -397,7 +397,7 @@ def fixed_positions(state: NuruominoState, adj_regions):
         # Se houver 4 posições fixas, colocar a peça e continuar para a próxima regiã0
         if len(fixed_positions) == 4:
             Board.place_piece(state.board.grid, fixed_letter, fixed_positions)
-            state.board.placed_pieces.append((fixed_letter, fixed_positions))
+            state.board.placed_pieces.add((fixed_letter, tuple(fixed_positions)))
             state.board.regions.pop(region)
             state.board.possible_pieces.pop(region)
 
@@ -454,7 +454,7 @@ class Nuruomino(Problem):
                     
                     all_actions.append((region, piece, pos))
 
-        #time.sleep(2)
+        time.sleep(2)
         #print("State ID:", state.id)
         #Board.print_instance(state.board.grid)
         
@@ -477,7 +477,7 @@ class Nuruomino(Problem):
         new_state = NuruominoState(board_copy)
         
         Board.place_piece(new_state.board.grid, piece, positions)
-        new_state.board.placed_pieces.append((piece, positions))
+        new_state.board.placed_pieces.add((piece, tuple(positions)))
         
         new_state.action_region_size = len(state.board.regions[region])
         new_state.region_actions = len(state.board.possible_pieces[region])
@@ -505,7 +505,8 @@ class Nuruomino(Problem):
             return False
         
         visited = set()
-        queue = deque([state.board.placed_pieces[0][1][0]])
+        queue = deque([next(iter(state.board.placed_pieces))[1][0]])
+        # TO CHANGE: COMEÇAR NA PEÇA QUE FOI COLOCADA NO ESTADO INICIAL
         
         main_directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
 
@@ -600,28 +601,27 @@ class Nuruomino(Problem):
         #depth_bonus = 1 / (node.depth*node.depth*node.depth + 1)  # Evitar que a profundidade penalize muito a heurística
 
         h = (
-            1.0 * num_actions +
-            2.0 * region_size +
-            3.0 * regions_left -
-            1.0 * new_Ps +
+            0.1 * num_actions +
+            0.1 * region_size +
+            0.8 * regions_left +
+            #0.3 * new_Ps +
 
-            1.0 * critical +
-            2.0 * still_possible_region
+            1.0 * critical
+            #2.0 * still_possible_region
         )
-
-        h -= 0.0001 * node.depth
 
         if h < 100:
             print(f"Possible Moves:{node.state.board.possible_pieces.keys()}") 
             print("Node_id:", node.state.id)
             print("Action:", node.action)
             print(f" H region size: {region_size} \n| num_Actions: {num_actions} \n| Regions left: {regions_left} \n| New Ps: {new_Ps} \n| Connections: {connections} \n| Critical: {critical}")
+            print("Depth:", node.depth)
             print("F(n):", h)
             Board.print_instance(node.state.board.grid)
             print("\n")
         #print("\n")
 
-        return h
+        return h - node.depth
         
 
 if __name__ == "__main__":
