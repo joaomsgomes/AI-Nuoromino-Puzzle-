@@ -92,6 +92,7 @@ class Node:
         return self.state < node.state
 
     def expand(self, problem):
+        print("Expanding node:", self.state.id)
         """List the nodes reachable in one step from this node."""
         return [self.child_node(problem, action)
                 for action in problem.actions(self.state)]

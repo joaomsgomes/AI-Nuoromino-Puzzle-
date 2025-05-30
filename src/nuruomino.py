@@ -434,8 +434,9 @@ class Nuruomino(Problem):
         board.set_adjacent_regions()
         
         fixed_positions(self.initial, list(self.board.regions.keys())) #Estado inicial de qualquer no
-        
+        print("BOARD INICIAL:")
         Board.print_instance(self.board.grid)
+        print("Initial Possible Pieces:", self.board.possible_pieces.keys())
         #time.sleep(1)
         
         #TODO
@@ -453,9 +454,9 @@ class Nuruomino(Problem):
                     
                     all_actions.append((region, piece, pos))
 
-        time.sleep(2)
-        print("State ID:", state.id)
-        Board.print_instance(state.board.grid)
+        #time.sleep(2)
+        #print("State ID:", state.id)
+        #Board.print_instance(state.board.grid)
         
         return all_actions
     
@@ -477,7 +478,7 @@ class Nuruomino(Problem):
         
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.append((piece, positions))
-
+        
         new_state.action_region_size = len(state.board.regions[region])
         new_state.region_actions = len(state.board.possible_pieces[region])
         new_state.board.regions.pop(region)
@@ -485,14 +486,14 @@ class Nuruomino(Problem):
 
         
         affected_regions = [r for r in new_state.board.region_adj_regions[region] if r in new_state.board.regions.keys()]
-
+        
         if not fixed_positions(new_state, affected_regions):
             new_state.bad_path = True
 
         #print("\n\n\n")
         #print("New State ID:", new_state.id)
         #Board.print_instance(new_state.board.grid)
-
+        #state.board = board_copy
         return new_state
               
     def goal_test(self, state: NuruominoState):
@@ -528,6 +529,23 @@ class Nuruomino(Problem):
 
         return True
 
+    def region_no_moves(node):
+        
+        region = node.action[0]
+
+        region_adj_regions = node.state.board.region_adj_regions
+
+        if region not in region_adj_regions:
+            return 0
+        
+        for adj_region in region_adj_regions[region]:
+            if adj_region in node.state.board.possible_pieces.keys() and len(node.state.board.possible_pieces[adj_region]) == 0:
+                return 1000
+
+        return 0
+
+
+
     def h_state_connections(state: NuruominoState):
 
         main_directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
@@ -556,12 +574,13 @@ class Nuruomino(Problem):
     
     def h(self, node: Node):
         #print("Node_ID and Action:", node.state.id, node.action)
-
+        
         """Função heuristica utilizada para a procura A*."""
 
         if node.state.id == 0:
             return 1000
-
+        
+        still_possible_region = Nuruomino.region_no_moves(node)
         # Número de conexões entre peças (quanto mais melhor)
         connections = Nuruomino.h_state_connections(node.state)
         # Quantidade de novas posições fixas descobertas (quanto mais melhor)
@@ -586,15 +605,17 @@ class Nuruomino(Problem):
             3.0 * regions_left -
             1.0 * new_Ps +
 
-            1.0 * critical
+            1.0 * critical +
+            2.0 * still_possible_region
         )
 
         h -= 0.0001 * node.depth
 
         if h < 100:
+            print(f"Possible Moves:{node.state.board.possible_pieces.keys()}") 
             print("Node_id:", node.state.id)
             print("Action:", node.action)
-            print(f" H region size: {region_size} \n| Actions: {num_actions} \n| Regions left: {regions_left} \n| New Ps: {new_Ps} \n| Connections: {connections} \n| Critical: {critical}")
+            print(f" H region size: {region_size} \n| num_Actions: {num_actions} \n| Regions left: {regions_left} \n| New Ps: {new_Ps} \n| Connections: {connections} \n| Critical: {critical}")
             print("F(n):", h)
             Board.print_instance(node.state.board.grid)
             print("\n")
