@@ -66,6 +66,7 @@ class NuruominoState:
         self.action_region_size = 0
         self.region_actions = 0
         self.not_connected_permanently = False
+        self.region_action = None
 
 
     def __lt__(self, other):
@@ -286,20 +287,39 @@ class Board:
         
         return possible_pieces
 
-    def invalid_adjacencies(self, piece_letter, positions):
+    def invalid_adjacencies(self, region, piece_letter, positions):
         """
-        Verifica se a peça está conectada a alguma outra peça diferente.
+        Verifica se a peça está conectada a outra peça igual (inválido)
+        ou se a região ficou isolada (inválido).
         """
+        isolated = True
 
         for (i, j) in positions:
             for dx, dy in DELTAS:
                 ni, nj = i + dx, j + dy
                 neighbor = Board.get_value(self.grid, ni, nj)
 
-                if neighbor in TETROMINO_SHAPES and neighbor == piece_letter and (ni, nj) not in positions:
-                        return True  # Está ligada a outra peça igual
-                
-        return False  # Não está ligada a outra peça igual
+                if (ni, nj) not in self.regions[region] and neighbor is not None:
+                    # Se for uma peça igual adjacente fora da região, é inválido
+                    if neighbor == piece_letter:
+                        #print(f"Peça {piece_letter} ligada a outra peça igual na posição ({ni}, {nj})")
+                        return True
+
+                    # Se houver qualquer célula adjacente, que pertença a uma peça, numa região diferente, não está isolada
+                    # Se a região da célula adjacente ainda não tiver peça colocada, não se pode dizer que está isolada
+                    
+                    if neighbor in self.regions.keys() or (neighbor != piece_letter and neighbor in TETROMINO_SHAPES):
+
+                        isolated = False
+
+        # Se ficou isolada (nenhuma célula adjacente pertence a outra região)
+        if isolated:
+            #print("REGIÃO ISOLADA DETETADA!")
+            return True
+
+        return False
+        
+   
 
 
     def filter_actions(self, region, possible_pieces):
@@ -315,29 +335,18 @@ class Board:
             piece_type, positions = piece
             aux_board = board.clone()
 
-            #for i, j in positions:
-            #    aux_board.grid[i][j] = 'P'
+            has_invalid_adj = aux_board.invalid_adjacencies(region, piece_type, positions)
 
-            # Checa adjacências com o aux_board.grid diretamente
-            has_invalid_adj = aux_board.invalid_adjacencies(piece_type, positions)
-
-            #if piece[0] == 'I' and (5,1) in piece[1]:
-            #    print("I Piece:", has_invalid_adj, "at positions:", positions)
-            
             if has_invalid_adj:
-                #Board.print_instance(aux_board.grid)
-                #print("Invalid adjacency for piece:", piece_type, "at positions:", positions)
                 continue
 
             Board.place_piece(aux_board.grid, piece_type, positions)
             
             forms_square = any(Board.is_square(aux_board.grid, row, col) for row, col in positions)
 
-            
             if forms_square:
                 continue
 
-            
             filtered_pieces.append(piece)
 
         
@@ -379,7 +388,7 @@ def fixed_positions(state: NuruominoState, adj_regions):
     queue = deque(adj_regions)
     queued_regions = set(adj_regions)
 
-    #print("State:", state.id)
+    print("State:", state.id)
     #print("QUEUE:" , queue)
     while queue:
         #print("Queue:", queue)
@@ -441,7 +450,10 @@ def fixed_positions(state: NuruominoState, adj_regions):
         #self.regions[region] = list(visited_positions)
 
     #Board.print_regions(self.possible_pieces)
-        
+    #if state.id == 241:
+    #    Board.print_regions(state.board.regions)
+    #    time.sleep(5)
+
     return True
 
 class Nuruomino(Problem):
@@ -457,10 +469,10 @@ class Nuruomino(Problem):
         board.set_adjacent_regions()
         
         fixed_positions(self.initial, list(self.board.regions.keys())) #Estado inicial de qualquer no
-        #print("BOARD INICIAL:")
-        #Board.print_instance(self.board.grid)
+        print("BOARD INICIAL:")
+        Board.print_instance(self.board.grid)
         #print("Initial POSSIBLE PIECES:", self.board.possible_pieces)
-        #time.sleep(1)
+        time.sleep(1)
         
         #TODO
         pass 
@@ -477,9 +489,10 @@ class Nuruomino(Problem):
                     
                     all_actions.append((region, piece, pos))
 
-        #print("State ID:", state.id)
-        #Board.print_instance(state.board.grid)
-        #time.sleep(2)
+        print("State ID:", state.id)
+        print("Action on Region:", state.region_action)
+        Board.print_instance(state.board.grid)
+        time.sleep(2)
         
         return all_actions
 
@@ -541,6 +554,9 @@ class Nuruomino(Problem):
         Board.place_piece(new_state.board.grid, piece, positions)
         new_state.board.placed_pieces.add((piece, tuple(positions)))
         
+        new_state.region_actions = len(state.board.possible_pieces[region])
+        new_state.region_action = region        # TO REMOVE
+
         new_state.action_region_size = len(state.board.regions[region])
         
         new_state.board.regions.pop(region)
@@ -553,8 +569,6 @@ class Nuruomino(Problem):
             #print("New State ID:", new_state.id)
             #print("Bad Path Detected!")
             new_state.bad_path = True
-
-        #new_state.region_actions = len(new_state.board.possible_pieces[region])
         
 
         #print("\n\n\n")
@@ -594,6 +608,42 @@ class Nuruomino(Problem):
         self.board = state.board
 
         return True
+    
+
+    def num_nurikabes(state: NuruominoState):
+        
+        num_nurikabes = 0
+        filled_positions = {pos for _, positions in state.board.placed_pieces for pos in positions}
+
+        while filled_positions:
+            #print("Placed Pieces:", filled_positions)
+
+            visited = set()
+            queue = deque([next(iter(filled_positions))])
+            filled_positions.discard(queue[0])
+
+            while queue:
+                #print("Queue:", queue)
+
+                i, j = queue.popleft()
+                visited.add((i, j))
+
+                for dx, dy in DELTAS:
+                    ni, nj = i + dx, j + dy
+                    adj_piece = Board.get_value(state.board.grid, ni, nj)
+
+                    
+                    if adj_piece in TETROMINO_SHAPES and adj_piece != 'P':
+                        if (ni, nj) not in visited:
+                            queue.append((ni, nj))
+                            filled_positions.discard((ni, nj))
+
+                        
+            num_nurikabes +=1
+
+
+        return num_nurikabes
+
 
     def region_no_moves(node):
         
@@ -667,9 +717,17 @@ class Nuruomino(Problem):
     def get_dynamic_weights(state, node):
         r = len(state.board.regions)
         if r > 10:
-            return {'num_actions': 0.5, 'regions_left': 0.3, 'isolated_move': 1.0, 'critical': 1.0, 'connections': 0.2}
+            return {'num_actions': 0.05,
+                    'regions_left': 0.5, 
+                    'new_Ps': 0.3,
+                    'num_nurikabes': 0.6,
+                    'critical': 1.0,}
         else:
-            return {'num_actions': 0.2, 'regions_left': 0.2, 'isolated_move': 1.0, 'critical': 1.0, 'connections': 0.5}
+            return {'num_actions': 0.1,
+                    'regions_left': 0.3, 
+                    'new_Ps': 0.1,
+                    'num_nurikabes': 0.2,
+                    'critical': 1.0,}
 
 
     def h(self, node: Node):
@@ -693,9 +751,10 @@ class Nuruomino(Problem):
         # Número de regiões por preencher (quanto menos melhor)
         regions_left = len(node.state.board.regions)
         # Quantidade de ações possíveis na região (quanto menos melhor)
-        num_actions = len(node.state.board.possible_pieces[node.action[0]]) if node.action[0] in node.state.board.regions.keys() else 0
+        num_actions = node.state.region_actions
         # Tamanho médio das regiões adjacentes (quanto menos melhor)
         #adj_regions = Nuruomino.h_adj_regions_priority(node.state)
+        num_nurikabes = Nuruomino.num_nurikabes(node.state)
 
         # Penalização, caminho sem solução
         critical = Nuruomino.h_bad_path(node.state)
@@ -708,25 +767,25 @@ class Nuruomino(Problem):
         #depth_bonus = 1 / (node.depth*node.depth*node.depth + 1)  # Evitar que a profundidade penalize muito a heurística
 
         h = (
-            weights['num_actions'] * num_actions +
-            #weights['region_size'] * region_size +
+            #weights['num_actions'] * num_actions +
+            weights['num_nurikabes'] * num_nurikabes +
             weights['regions_left'] * regions_left +
-            weights['isolated_move'] * isolated_move +
+            #weights['new_Ps'] * new_Ps +
             #1.0 * number_tetrominos_connected +
             #weights['connections'] * connections +
             weights['critical'] * critical
             #weights['still_possible_region'] * still_possible_region
         )
         
-        #if h < 10000:    
-            #print(f"Possible Moves:{node.state.board.possible_pieces.keys()}") 
-            #print("Node_id:", node.state.id)
-            #print("Action:", node.action)
-            #print(f" H-->  num_Actions: {num_actions} \n| Regions left: {regions_left} \n| New Ps: {new_Ps} \n| Connections: {number_tetrominos_connected} \n| Critical: {critical}")
-            #print("Depth:", node.depth)
-            #print("F(n):", h)
-            #Board.print_instance(node.state.board.grid)
-            #print()
+        if h < 100 and (node.state.id == 238 or node.state.id == 23):    
+            print(f"Possible Moves:{node.state.board.possible_pieces.keys()}") 
+            print("Node_id:", node.state.id)
+            print("Action:", node.action)
+            print(f" H-->  num_Actions: {num_actions} \n| Regions left: {regions_left} \n| New Ps: {new_Ps} \n| Num_nurikabes: {num_nurikabes} \n Critical: {critical}")
+            print("Depth:", node.depth)
+            print("F(n):", h)
+            Board.print_instance(node.state.board.grid)
+            print()
         
 
         return h - node.depth
