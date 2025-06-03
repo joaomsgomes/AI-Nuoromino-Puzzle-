@@ -381,9 +381,9 @@ def fixed_positions(state: NuruominoState, adj_regions):
 
     #print("State:", state.id)
     #print("region ", state.region_action)
-    #print("QUEUE:" , queue)
+    print("QUEUE:" , queue)
     while queue:
-        #print("Queue:", queue)
+        print("Queue:", queue)
         #Board.print_instance(state.board.grid)
         region = queue.popleft()
         queued_regions.remove(region)
@@ -441,13 +441,37 @@ def fixed_positions(state: NuruominoState, adj_regions):
                     queued_regions.add(r)
         
         else:
+
             # CC, colocar P's
+            new_Ps = False
             for i, j in fixed_positions:
                 if state.board.grid[i][j] != fixed_letter:
                     state.board.grid[i][j] = fixed_letter    #TODO: REVER Ps / LETTTERS na grid
+                    new_Ps = True
                     state.only_letter += len(fixed_positions)
-        
 
+            if new_Ps:
+
+                for adj in state.adj_graph[region]:
+
+                    if region in state.adj_graph[adj]:
+                        invalid_entries = set()
+
+                        for entry in state.adj_graph[adj][region]:
+                            
+                            entry_piece, entry_positions = entry[0], set(entry[1])
+                            # Verifica se há alguma posição adjacente à peça colocada
+                            if any((i + dx, j + dy) in fixed_positions for (i, j) in entry_positions for dx, dy in DELTAS):
+
+                                if Nuruomino.is_invalid_entry(board.grid, entry_piece, entry_positions, piece):
+                                    invalid_entries.add(entry)
+                        
+                        for e in invalid_entries:
+                            for reg in state.adj_graph[adj]:
+                                if e in state.adj_graph[adj][reg]:
+                                    state.adj_graph[adj][reg].remove(e)
+
+                    
         #self.regions[region] = list(visited_positions)
 
     #Board.print_regions(self.possible_pieces)
@@ -482,7 +506,7 @@ class Nuruomino(Problem):
         print("BOARD INICIAL:")
         Board.print_instance(self.board.grid)
         #print("Initial POSSIBLE PIECES:", self.board.possible_pieces)
-        #time.sleep(1)
+        time.sleep(1)
         
         #TODO
         pass 
@@ -519,6 +543,31 @@ class Nuruomino(Problem):
                     adj_graph[region][adj] = connecting_pieces
 
         return adj_graph
+    
+    def is_invalid_entry(grid, entry_piece, entry_positions, piece):
+             
+        if entry_piece == piece: #ADJACENCIAS
+            return True
+            
+        original = [grid[i][j] for i, j in entry_positions]
+
+        for (i, j) in entry_positions:
+            grid[i][j] = entry_piece
+
+        #print("Checking if entry forms a square:", entry)
+        #Board.print_instance(board.grid)
+
+        forms_square = any(Board.is_square(grid, row, col) for row, col in entry_positions)
+        
+        for idx, (i, j) in enumerate(entry_positions):
+            grid[i][j] = original[idx]
+
+        if forms_square: #QUADRADOS
+            return True
+
+        return False
+        
+
 
     def update_adjacency_graph_piece(state, placed_region, piece, positions):
         """
@@ -554,31 +603,14 @@ class Nuruomino(Problem):
                     entry_piece, entry_positions = entry[0], set(entry[1])
                     # Verifica se há alguma posição adjacente à peça colocada
                     if any((i + dx, j + dy) in positions_set for (i, j) in entry_positions for dx, dy in DELTAS):
-                        
-                        if entry_piece == piece: #ADJACENCIAS
+
+                        if Nuruomino.is_invalid_entry(board.grid, entry_piece, entry_positions, piece):
                             invalid_entries.add(entry)
-                            continue
-                        
-                        original = [board.grid[i][j] for i, j in entry_positions]
 
-                        for (i, j) in entry_positions:
-                            board.grid[i][j] = entry_piece
-
-                        #print("Checking if entry forms a square:", entry)
-                        #Board.print_instance(board.grid)
-
-                        forms_square = any(Board.is_square(board.grid, row, col) for row, col in entry_positions)
-                        
-                        for idx, (i, j) in enumerate(entry_positions):
-                            board.grid[i][j] = original[idx]
-
-                        if forms_square: #QUADRADOS
-                            invalid_entries.add(entry)
                     else:
                         #print("No adjacent positions found for entry:", entry)
                         invalid_region_entries.add(entry)
                         
-
                 for reg in graph[adj].keys():
                     to_remove = set()
                     for en in graph[adj][reg]:
@@ -619,7 +651,7 @@ class Nuruomino(Problem):
         print("NODE EXPANDED State ID:", state.id)
         Board.print_instance(state.board.grid)
         #print("Possible Actions:", all_actions)
-        #time.sleep(1)
+        time.sleep(1)
         
         return all_actions
     
@@ -680,10 +712,6 @@ class Nuruomino(Problem):
                     if len(graph[current_region][adj_region]) > 0 and adj_region not in visited:
                         #print("Adding Adjacent Region:", adj_region)
                             queue.append(adj_region)
-
-        if len(visited) != self.num_regions:
-            state.bad_path = True
-            return 0
 
         print("Visited Regions:", visited)
         
