@@ -381,9 +381,10 @@ def fixed_positions(state: NuruominoState, adj_regions):
 
     #print("State:", state.id)
     #print("region ", state.region_action)
-    print("QUEUE:" , queue)
+    #print("QUEUE:" , queue)
     while queue:
-        print("Queue:", queue)
+        #print("Queue:", queue)
+
         #Board.print_instance(state.board.grid)
         region = queue.popleft()
         queued_regions.remove(region)
@@ -451,10 +452,12 @@ def fixed_positions(state: NuruominoState, adj_regions):
                     state.only_letter += len(fixed_positions)
 
             if new_Ps:
-
+                
                 for adj in state.adj_graph[region]:
+                    
+                    #print(adj)
 
-                    if region in state.adj_graph[adj]:
+                    if region in state.adj_graph[adj] and adj in state.board.regions.keys():
                         invalid_entries = set()
 
                         for entry in state.adj_graph[adj][region]:
@@ -463,13 +466,19 @@ def fixed_positions(state: NuruominoState, adj_regions):
                             # Verifica se há alguma posição adjacente à peça colocada
                             if any((i + dx, j + dy) in fixed_positions for (i, j) in entry_positions for dx, dy in DELTAS):
 
-                                if Nuruomino.is_invalid_entry(board.grid, entry_piece, entry_positions, piece):
+                                if Nuruomino.is_invalid_entry(state.board.grid, entry_piece, entry_positions, fixed_letter):
                                     invalid_entries.add(entry)
                         
                         for e in invalid_entries:
                             for reg in state.adj_graph[adj]:
                                 if e in state.adj_graph[adj][reg]:
                                     state.adj_graph[adj][reg].remove(e)
+
+                        if adj not in queued_regions and len(invalid_entries) > 0:
+                            queue.append(adj)
+                            queued_regions.add(adj)
+
+
 
                     
         #self.regions[region] = list(visited_positions)
@@ -506,7 +515,7 @@ class Nuruomino(Problem):
         print("BOARD INICIAL:")
         Board.print_instance(self.board.grid)
         #print("Initial POSSIBLE PIECES:", self.board.possible_pieces)
-        time.sleep(1)
+        #time.sleep(1)
         
         #TODO
         pass 
@@ -651,7 +660,7 @@ class Nuruomino(Problem):
         print("NODE EXPANDED State ID:", state.id)
         Board.print_instance(state.board.grid)
         #print("Possible Actions:", all_actions)
-        time.sleep(1)
+        #time.sleep(1)
         
         return all_actions
     
@@ -694,8 +703,11 @@ class Nuruomino(Problem):
         graph = state.adj_graph
 
         visited = set()
+        queued_regions = set()
         queue = deque([next(iter(state.board.placed_pieces))[0]]) # Começar com uma peça colocada no estado inicial
         while queue:
+
+            print(queue)
 
             current_region = queue.popleft()
             visited.add(current_region)
@@ -704,18 +716,43 @@ class Nuruomino(Problem):
             for adj_region in graph[current_region]:
                 for p in graph[current_region][adj_region]:
                     pieces.add(p)
+
+            print("pieces", pieces)
             
             # UMA UNICA PEÇA -> região preenchida
-            if len(pieces) == 1 and current_region not in visited:
-
+            if len(pieces) == 1:
                 for adj_region in graph[current_region]:
-                    if len(graph[current_region][adj_region]) > 0 and adj_region not in visited:
-                        #print("Adding Adjacent Region:", adj_region)
-                            queue.append(adj_region)
+                    if len(graph[current_region][adj_region]) > 0 and adj_region not in visited and adj_region not in queued_regions:
+                        print("Adding Adjacent Region:", adj_region)
+                        queue.append(adj_region)
+                        queued_regions.add(adj_region)
 
         print("Visited Regions:", visited)
         
         return len(visited)
+
+
+    def print_state(state):
+        print(f"State ID: {state.id}")
+        print(f"Region Action: {state.region_action}")
+        print(f"Bad Path: {state.bad_path}")
+        print(f"Only Letter: {state.only_letter}")
+        print(f"Action Region Size: {state.action_region_size}")
+        print("Board Grid:")
+        Board.print_instance(state.board.grid)
+        print("Regions:")
+        Board.print_regions(state.board.regions)
+        print("Possible Pieces:")
+        for region, pieces in state.board.possible_pieces.items():
+            print(f"  Região {region}: {pieces}")
+        print("Region Adjacent Regions:")
+        for region, adjs in state.board.region_adj_regions.items():
+            print(f"  Região {region}: {adjs}")
+        print("Placed Pieces:")
+        print(state.board.placed_pieces)
+        print("Adjacency Graph:")
+        Nuruomino.print_adjacency_graph(state.adj_graph)
+        print("-" * 40)
 
 
     def result(self, state: NuruominoState, action):
@@ -747,8 +784,7 @@ class Nuruomino(Problem):
         if not fixed_positions(new_state, new_state.adj_graph[region].keys()):
             new_state.bad_path = True
         else:
-            print("New State ID:", new_state.id)
-            print("Action:", action)
+            Nuruomino.print_state(new_state)
             #Nuruomino.print_adjacency_graph(new_state.adj_graph)
             Board.print_instance(new_state.board.grid)
             #print("Action:", action)
@@ -770,11 +806,17 @@ class Nuruomino(Problem):
         print("Checking goal test for state ID:", state.id)
         
         if len(state.board.placed_pieces) != self.num_regions:
+            print(len(state.board.placed_pieces))
+            print(self.num_regions)
+            print("Placed pieces nao corresponde ao numero de regioes!")
             return False
-        
-        
 
-        return self.num_connected_pieces(state) == self.num_regions
+        if self.num_connected_pieces(state) == self.num_regions:
+            self.board = state.board
+
+            return True
+        
+        return False
     
 
     def h_bad_path(state: NuruominoState):
