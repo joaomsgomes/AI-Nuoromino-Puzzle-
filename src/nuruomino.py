@@ -642,26 +642,21 @@ class Nuruomino(Problem):
                 print(f"  -> Região {adj}: peças possíveis = {pieces}")
             print()
 
+    def get_smallest_region(self, state):
+        # Retorna o id da região com menor número de células
+        return min(state.board.regions, key=lambda r: len(state.board.regions[r]))
+
     def actions(self, state: NuruominoState):
-        """Retorna uma lista de ações que podem ser executadas a
-        partir do estado passado como argumento."""
         all_actions = []
-        for region in state.board.regions:
-            if region in state.adj_graph:
-                #print("Region in Graph: ", region)
-                for adj, pieces in state.adj_graph[region].items():
-                    for piece, positions in pieces:
-                        action = (region, piece, positions)
-                        if action not in all_actions:
-                            #print("We are going to Add: ", (region, piece, positions))
-                            all_actions.append(action)
-        
-        #Nuruomino.print_adjacency_graph(state.adj_graph)
-        print("NODE EXPANDED State ID:", state.id)
-        Board.print_instance(state.board.grid)
-        #print("Possible Actions:", all_actions)
-        #time.sleep(1)
-        
+        if not state.board.regions:
+            return all_actions
+        region = self.get_smallest_region(state)
+        if region in state.adj_graph:
+            for adj, pieces in state.adj_graph[region].items():
+                for piece, positions in pieces:
+                    action = (region, piece, positions)
+                    if action not in all_actions:
+                        all_actions.append(action)
         return all_actions
     
 
@@ -916,7 +911,9 @@ if __name__ == "__main__":
 
     #Nuruomino.print_adjacency_graph(problem.initial.adj_graph)
 
-    goal_node = astar_search(problem)
+    #goal_node = astar_search(problem)
+
+    goal_node = depth_first_tree_search(problem)
 
     Board.print_instance(problem.board.grid)
 
