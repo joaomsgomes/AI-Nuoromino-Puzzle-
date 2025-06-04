@@ -595,9 +595,12 @@ class Nuruomino(Problem):
 
         #print("Checking if entry forms a square:", entry)
         #Board.print_instance(board.grid)
+        forms_square = False
+        for row, col in entry_positions:
+            if Board.is_square(grid, row, col):
+                forms_square = True
+                break
 
-        forms_square = any(Board.is_square(grid, row, col) for row, col in entry_positions)
-        
         for idx, (i, j) in enumerate(entry_positions):
             grid[i][j] = original[idx]
 
@@ -722,12 +725,12 @@ class Nuruomino(Problem):
                         #print("PROBLEM FIXED PSOITIONS")
                         bad_path = True
                         
-                    elif not self.all_regions_reachable(region, future_state):
+                    if not self.all_regions_reachable(region, future_state):
                         #print("PROBLEM ALL REGIONS REACHABLE")
                         bad_path = True
 
                     if not bad_path:
-                        all_actions.append((region, piece, positions))
+                        all_actions.append((future_state))
             
                 if not all_actions:
                     continue
@@ -836,10 +839,10 @@ class Nuruomino(Problem):
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
         self.actions(state)."""
-        region, piece, positions = action
+        new_state = action
 
         #Board.print_instance(state.board.grid)
-
+        '''
         if len(state.board.regions[region]) < 4:
             return None
         
@@ -862,7 +865,7 @@ class Nuruomino(Problem):
             
         #elif not self.all_regions_reachable(new_state):
         #    new_state.bad_path = True
-        
+        '''
 
         #print("\n\n\n")
         #print("New State ID:", new_state.id)
