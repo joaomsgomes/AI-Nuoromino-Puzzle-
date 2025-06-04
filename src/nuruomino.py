@@ -649,28 +649,36 @@ class Nuruomino(Problem):
         return min(state.board.regions, key=lambda r: len(state.board.regions[r]))
 
     def actions(self, state: NuruominoState):
-        """Retorna uma lista de ações que podem ser executadas a
-        partir do estado passado como argumento."""
+
+        # OBTER AÇÕES:
+        # -> EM REGIÕES MAIS PEQUENAS
+        # -> EM REGIÕES COM MENOS AÇÕES POSSÍVEIS
+        # -> PEÇAS COM ADJACENCIA COM MAIS REGIÕES
+
+        # JUNTAR CRITERIOS
+        # ORDENAR
+
         all_actions = []
-        for region in state.board.regions:
-            if region in state.adj_graph:
-                #print("Region in Graph: ", region)
-                for adj, pieces in state.adj_graph[region].items():
-                    for piece, positions in pieces:
-                        action = (region, piece, positions)
-                        if action not in all_actions:
-                            #print("We are going to Add: ", (region, piece, positions))
-                            all_actions.append(action)
+        if not state.board.regions:
+            return all_actions
+        region = self.get_smallest_region(state)
+        if region in state.adj_graph:
+            for adj, pieces in state.adj_graph[region].items():
+                for piece, positions in pieces:
+                    action = (region, piece, positions)
+                    if action not in all_actions:
+                        all_actions.append(action)
         
         #Nuruomino.print_adjacency_graph(state.adj_graph)
-        #print("NODE EXPANDED State ID:", state.id)
-        #Board.print_instance(state.board.grid)
+        print("NODE EXPANDED State ID:", state.id)
+        Board.print_instance(state.board.grid)
         #print("Possible Actions:", all_actions)
         #time.sleep(1)
         
         return all_actions
     
 
+    
     def all_regions_reachable(self, state: NuruominoState):
 
         """Retorna uma lista de regiões que podem ser alcançadas a partir do estado passado como argumento."""
@@ -941,9 +949,11 @@ if __name__ == "__main__":
 
     #Nuruomino.print_adjacency_graph(problem.initial.adj_graph)
 
-    goal_node = astar_search(problem)
+    #goal_node = astar_search(problem)
 
-    #goal_node = depth_first_tree_search(problem)q
+    #goal_node = astar_search(problem)
+
+    goal_node = depth_first_tree_search(problem)
 
     Board.print_instance(problem.board.grid)
 
