@@ -311,37 +311,7 @@ class Board:
 
         return False
 
-    def filter_actions(self, region, possible_pieces):
-        
-        """Devolve as peças que podem ser colocadas na região atendendo às regras do L.I.T.S ."""
-        
-        board = self.clone()
 
-        filtered_pieces = []
-
-        for piece in possible_pieces:
-
-            piece_type, positions = piece
-            aux_board = board.clone()
-
-            has_invalid_adj = aux_board.invalid_adjacencies(region, piece_type, positions)
-
-            if has_invalid_adj:
-                continue
-
-            Board.place_piece(aux_board.grid, piece_type, positions)
-            
-            forms_square = any(Board.is_square(aux_board.grid, row, col) for row, col in positions)
-
-            if forms_square:
-                continue
-
-            filtered_pieces.append(piece)
-
-        
-        return filtered_pieces
-    
-    
     def is_square(grid, row, col):
 
         for deltas in SQUARE_DELTAS:
@@ -359,12 +329,12 @@ class Board:
 
         new_grid = [row[:] for row in self.grid]
         new_regions = {k: v[:] for k, v in self.regions.items()}
-        new_possible_pieces = {k: v[:] for k, v in self.possible_pieces.items()}
-        new_region_adj_regions = {k: v[:] for k, v in self.region_adj_regions.items()}
+        #new_possible_pieces = {k: v[:] for k, v in self.possible_pieces.items()}
+        #new_region_adj_regions = {k: v[:] for k, v in self.region_adj_regions.items()}
         new_placed_pieces = set((region, piece, tuple(positions)) for region, piece, positions in self.placed_pieces)
         b = Board(new_grid, new_regions)
-        b.possible_pieces = new_possible_pieces
-        b.region_adj_regions = new_region_adj_regions
+        #b.possible_pieces = new_possible_pieces
+        #b.region_adj_regions = new_region_adj_regions
         b.placed_pieces = new_placed_pieces
         return b
         
@@ -432,11 +402,10 @@ def fixed_positions(state: NuruominoState, adj_regions):
             Board.place_piece(state.board.grid, fixed_letter, fixed_positions)
             state.board.placed_pieces.add((region, fixed_letter, tuple(fixed_positions)))
             state.board.regions.pop(region)
-            state.board.possible_pieces.pop(region)
             Nuruomino.update_adjacency_graph_piece(state, region, fixed_letter, fixed_positions) # TO BE REVIEWED!!!
             
 
-            for r in state.board.region_adj_regions[region]:
+            for r in state.adj_graph[region]:
                 if r not in queued_regions and r in state.board.regions.keys():
                     queue.append(r)
                     queued_regions.add(r)
@@ -693,17 +662,28 @@ class Nuruomino(Problem):
         # JUNTAR CRITERIOS
         # ORDENAR
         all_actions = []
-        for region in self.ordered_actions:
+        for region in self.ordered_action0s:
             
             if region in state.board.regions:
                 #print("regionnnnnnn")
-                actions = set()
+            
+                adjacencies = {}
                 for adj_region in state.adj_graph[region]:
                     for piece in state.adj_graph[region][adj_region]:
                         #print("ADDING TO ACTIONS")
-                        actions.add(piece)
+                        if piece in adjacencies:
+                            adjacencies[piece] += 1
+                        else:
+                            adjacencies[piece] = 1
                 #print(actions)
-                for piece, positions in actions:
+                sorted_dict = sorted(adjacencies.items(), key=lambda item: item[1], reverse=True)
+
+                sorted_adjacencies_list = [piece for piece, _ in sorted_dict]
+                
+
+                #print(sorted_adjacencies_list)
+
+                for piece, positions in sorted_adjacencies_list:
                     #print("FOR REGION: ", region, "USING PIECE: ", (piece,positions))
                     board_copy = state.board.clone()
                     future_state = NuruominoState(board_copy)
@@ -716,7 +696,8 @@ class Nuruomino(Problem):
                     future_state.board.placed_pieces.add((region, piece, tuple(positions)))
                     future_state.board.regions.pop(region)
                     
-                    Nuruomino.update_adjacency_graph_piece(future_state, region, piece, positions)
+                    #Nuruomino.update_adjacency_graph_piece(future_state, region, piece, positions)
+                    
 
                     bad_path = False
                     if not fixed_positions(future_state, future_state.adj_graph[region].keys()):
@@ -725,11 +706,12 @@ class Nuruomino(Problem):
                         #print("PROBLEM FIXED PSOITIONS")
                         bad_path = True
                         
-                    if not self.all_regions_reachable(region, future_state):
+                    if not self.all_regions_reachable((region, piece, positions), future_state):
                         #print("PROBLEM ALL REGIONS REACHABLE")
                         bad_path = True
 
                     if not bad_path:
+                        
                         all_actions.append((future_state))
             
                 if not all_actions:
@@ -745,26 +727,57 @@ class Nuruomino(Problem):
     
 
     
-    def all_regions_reachable(self, region_action, state: NuruominoState):
+    def all_regions_reachable(self, action, state: NuruominoState):
 
         """Retorna uma lista de regiões que podem ser alcançadas a partir do estado passado como argumento."""
         graph = state.adj_graph
 
+        region, letter, positions = action
+
         visited = set()
-        queue = deque([region_action]) # Começar com uma peça colocada no estado inicial
+        queued_regions = set()
+        
+        queue = deque([(region, set([(letter, positions)]))]) # Começar com uma peça colocada no estado inicial
+        
         while queue:
+            print()
+            print("NOVA ITERAÇÂO")
+            print(queue)
+            #print(visited)
 
-            current_region = queue.popleft()
+            current_region, pieces = queue.popleft()
+
+            print("Current Region:", current_region)
+            print("Pieces: ", pieces)
+            
             visited.add(current_region)
+            if current_region in queued_regions:
+                queued_regions.remove(current_region)
 
+            print("Adjacent regions: ")
+            print(graph[current_region])
             for adj_region in graph[current_region]:
-                    
-                if len(graph[current_region][adj_region]) > 0 and adj_region not in visited:
-                    queue.append(adj_region)
 
-        #print("visited:", visited)
+                print("Adjacence with Region", adj_region)
+                print(graph[current_region][adj_region])
 
-        if len(visited) != self.num_regions:
+                for piece in pieces:
+                    if piece in graph[current_region][adj_region] and adj_region not in queued_regions:
+            
+                        print("Passei o IF: ", adj_region)
+                        connectable_pieces = set()
+
+                        for conn_piece in graph[adj_region][current_region]:
+                            print("Piece Added: ", conn_piece, "In: ", adj_region, "To go to: ", current_region)
+                            connectable_pieces.add(conn_piece)
+
+                        queue.append((adj_region, connectable_pieces))
+                        queued_regions.add(adj_region)
+                        break
+
+        print("visited:", visited)
+
+        if len(visited) < self.num_regions:
             #print("BAD PATH DETECTED!")
             return False
         
@@ -1019,9 +1032,29 @@ if __name__ == "__main__":
 
     #goal_node = astar_search(problem)
     
-    goal_node = depth_first_tree_search(problem)
+    Board.place_piece(problem.initial.board.grid, 'L', ((1,0), (1,1), (2,0), (3,0)))
+    Nuruomino.update_adjacency_graph_piece(problem.initial, 1, 'L', ((1,0), (1,1), (2,0), (3,0)))
 
-    Board.print_instance(problem.board.grid)
+    Board.place_piece(problem.initial.board.grid, 'I', ((0,4), (0,5), (0,6), (0,7)))
+    Nuruomino.update_adjacency_graph_piece(problem.initial, 2, 'I', ((0,4), (0,5), (0,6), (0,7)))
+
+    Board.place_piece(problem.initial.board.grid, 'L', ((1,3), (1,4), (2,3), (3,3)))
+    Nuruomino.update_adjacency_graph_piece(problem.initial, 4, 'L', ((1,3), (1,4), (2,3), (3,3)))
+
+    Board.place_piece(problem.initial.board.grid, 'L', ((1,7), (1,8), (2,8), (3,8)))
+    Nuruomino.update_adjacency_graph_piece(problem.initial, 5, 'L', ((1,7), (1,8), (2,8), (3,8)))
+
+
+    Board.place_piece(problem.initial.board.grid, 'I', ((4,0), (5,0), (6,0), (7,0)))
+    Nuruomino.update_adjacency_graph_piece(problem.initial, 10, 'I', ((4,0), (5,0), (6,0), (7,0)))
+    
+    reachable = problem.all_regions_reachable([10, 'I', ((4,0), (5,0), (6,0), (7,0))], problem.initial)   
+    print("Reachable--> ", reachable)
+    
+
+    #goal_node = depth_first_tree_search(problem)
+
+    #    Board.print_instance(problem.board.grid)
 
     #Board.place_piece(problem.initial.board.grid, 'L', ((0,0), (0,1), (0,2), (1,0)))
 
