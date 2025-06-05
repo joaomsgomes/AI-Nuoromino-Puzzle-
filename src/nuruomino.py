@@ -433,14 +433,17 @@ class Nuruomino(Problem):
 
         actions = []
 
+        # Ordered regions list by number of possible actions
         ordered_list = Nuruomino.order_by_num_actions_and_adjacencies(state.board.possible_pieces, state.board.adj_graph)
 
         for region in ordered_list:
 
             pieces = state.board.possible_pieces[region]
 
+            # Each possible action
             for piece, positions in pieces:
                 
+                # Create new board and simulate action
                 new_board = Board.clone(state.board)
                 new_board.region_size = len(new_board.regions[region])
 
@@ -451,6 +454,7 @@ class Nuruomino(Problem):
 
                 bad_path = False
                 
+                # Verifies dead-ends using forward-checking
                 if not self.fixed_positions(new_board, affected_regions):
                     bad_path = True
                     
@@ -460,6 +464,7 @@ class Nuruomino(Problem):
                 if not bad_path:
                     actions.append(new_board)
 
+            # Returns only valid actions on promisable regions
             return actions
         
         return []
@@ -537,8 +542,8 @@ class Nuruomino(Problem):
         region_size = node.state.board.region_size
 
         h = (
-            0.3 * region_size +
-            0.3 * regions_left
+            0.5 * region_size +
+            0.5 * regions_left
         )
 
         # subtract g(n) -> prioritize depth
