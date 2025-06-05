@@ -61,6 +61,7 @@ class NuruominoState:
         self.board = board
         self.id = NuruominoState.state_id
         NuruominoState.state_id += 1
+        
 
     def __lt__(self, other):
         """ Este método é utilizado em caso de empate na gestão da lista
@@ -76,8 +77,11 @@ class Board:
         self.regions = regions  # Guarda as regiões
         self.num_regions = len(regions)
 
+
+        self.region_size = 0            # Size of the last region placed
         self.possible_pieces = {}       # Possible pieces by region                     
         self.adj_graph = {}             # Region adjacencies graph
+
 
     def set_possible_pieces(self):
         
@@ -276,7 +280,6 @@ class Nuruomino(Problem):
         # Placing Pieces in regions with length of 4 and trying to find other regions that might have only one possible piece as well
         self.fixed_positions(self.initial.board, list(sorted(self.board.regions, key=lambda r: len(self.board.regions[r]))))
 
-        Board.print_instance(self.board.grid)
 
 
     def fixed_positions(self, board, adj_regions):
@@ -439,6 +442,8 @@ class Nuruomino(Problem):
             for piece, positions in pieces:
                 
                 new_board = Board.clone(state.board)
+                new_board.region_size = len(new_board.regions[region])
+
                 Board.place_piece(new_board, region, piece, positions)
                 Board.update_graph(self.main_grid, region, positions, new_board)
                 
@@ -528,10 +533,12 @@ class Nuruomino(Problem):
         # Number of regions left to fill (less is better, means more progress)
         regions_left = len(node.state.board.regions)
 
+        
+        region_size = node.state.board.region_size
+
         h = (
-            0.5 * num_actions +
-            0.3 * regions_left -
-            0.2 * connections
+            0.3 * region_size +
+            0.3 * regions_left
         )
 
         # subtract g(n) -> prioritize depth
